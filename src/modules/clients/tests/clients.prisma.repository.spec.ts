@@ -1,0 +1,53 @@
+import { Test } from "@nestjs/testing";
+import { PrismaService } from "../../../infrastructure/database/prisma.service";
+import { ClientsPrismaRepository } from "../clients.prisma.repository";
+
+describe("ClientsPrismaRepository", () => {
+  let repository: ClientsPrismaRepository;
+
+  const prismaMock = {
+    client: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        ClientsPrismaRepository,
+        {
+          provide: PrismaService,
+          useValue: prismaMock,
+        },
+      ],
+    }).compile();
+
+    repository = moduleRef.get(ClientsPrismaRepository);
+    jest.clearAllMocks();
+  });
+
+  it("should create client for user", async () => {
+    prismaMock.client.create.mockResolvedValue({
+      id: "c1",
+      userId: "u1",
+      name: "Ana",
+      phone: "11911111111",
+      email: "ana@test.com",
+      createdAt: new Date(),
+    });
+
+    const result = await repository.create("u1", {
+      name: "Ana",
+      phone: "11911111111",
+      email: "ana@test.com",
+    });
+
+    expect(result.id).toBe("c1");
+    expect(prismaMock.client.create).toHaveBeenCalled();
+  });
+});

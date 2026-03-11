@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  clients      Client[]
+  appointments Appointment[]
+  schedules    Schedule[]
+}
+
+model Client {
+  id           String        @id @default(uuid())
+  name         String
+  phone        String
+  email        String?
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+
+  @@index([userId])
+}
+
+model Appointment {
+  id        String            @id @default(uuid())
+  clientId  String
+  client    Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  status    AppointmentStatus @default(CONFIRMED)
+  payment   Payment?
+  createdAt DateTime          @default(now())
+
+  @@index([userId, date])
+  @@index([clientId])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  appointmentId String        @unique
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  amount        Float
+  status        PaymentStatus @default(PENDING)
+  pixCode       String
+  createdAt     DateTime      @default(now())
+
+  @@index([status])
+}
+
+model Schedule {
+  id        String @id @default(uuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekday   Int
+  startTime String
+  endTime   String
+
+  @@unique([userId, weekday])
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
