@@ -5,7 +5,7 @@ import { AppointmentsRepository } from "./appointments.repository";
 
 @Injectable()
 export class AppointmentsPrismaRepository implements AppointmentsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async findManyByUserId(userId: string): Promise<AppointmentEntity[]> {
     return this.prisma.appointment.findMany({
@@ -24,6 +24,21 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
         date,
         NOT: { status: "CANCELLED" },
       },
+    });
+  }
+
+  async findByWeek(userId: string, startDate: Date): Promise<AppointmentEntity[]> {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+
+    return this.prisma.appointment.findMany({
+      where: {
+        userId,
+        date: { gte: start, lt: end },
+      },
+      orderBy: { date: "asc" },
     });
   }
 

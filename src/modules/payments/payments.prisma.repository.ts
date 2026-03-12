@@ -5,7 +5,7 @@ import { PaymentsRepository } from "./payments.repository";
 
 @Injectable()
 export class PaymentsPrismaRepository implements PaymentsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async createPix(input: {
     appointmentId: string;
@@ -20,5 +20,33 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
         status: "PENDING",
       },
     });
+  }
+
+  async findManyByUserId(userId: string): Promise<PaymentEntity[]> {
+    const payments = await this.prisma.payment.findMany({
+      where: { appointment: { userId } },
+      include: { appointment: { include: { client: true } } },
+    });
+
+    return payments.map((p) => ({
+      id: p.id,
+      appointmentId: p.appointmentId,
+      amount: p.amount,
+      status: p.status,
+      pixCode: p.pixCode,
+      createdAt: p.createdAt,
+    }));
+  }
+
+  async findById(id: string): Promise<PaymentEntity | null> {
+    return this.prisma.payment.findUnique({ where: { id } });
+  }
+
+  async markAsPaid(id: string): Promise<PaymentEntity | null> {
+    return this.prisma.payment.update({ where: { id }, data: { status: "PAID" } });
+  }
+
+  async cancel(id: string): Promise<PaymentEntity | null> {
+    return this.prisma.payment.update({ where: { id }, data: { status: "FAILED" } });
   }
 }

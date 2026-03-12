@@ -10,7 +10,7 @@ export class PaymentsService {
     private readonly paymentsRepository: PaymentsRepository,
     @Optional()
     private readonly paymentQueueService: PaymentQueueService,
-  ) {}
+  ) { }
 
   async createPix(dto: CreatePixPaymentDto) {
     const payment = await this.paymentsRepository.createPix({
@@ -23,5 +23,21 @@ export class PaymentsService {
       await this.paymentQueueService.enqueuePaymentStatusCheck(payment.id);
     }
     return payment;
+  }
+
+  async listForUser(userId: string) {
+    return this.paymentsRepository.findManyByUserId(userId);
+  }
+
+  async getById(id: string) {
+    return this.paymentsRepository.findById(id);
+  }
+
+  async markAsPaid(id: string) {
+    return this.paymentsRepository.markAsPaid(id);
+  }
+
+  async cancel(id: string) {
+    return this.paymentsRepository.cancel(id);
   }
 }

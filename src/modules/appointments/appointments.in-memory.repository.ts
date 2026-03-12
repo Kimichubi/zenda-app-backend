@@ -9,12 +9,25 @@ import { AppointmentsRepository } from "./appointments.repository";
 
 @Injectable()
 export class AppointmentsInMemoryRepository implements AppointmentsRepository {
-  constructor(private readonly db: InMemoryDatabaseService) {}
+  constructor(private readonly db: InMemoryDatabaseService) { }
 
   async findManyByUserId(userId: string): Promise<AppointmentEntity[]> {
     return this.db.appointments.filter(
       (appointment) => appointment.userId === userId,
     );
+  }
+
+  async findByWeek(userId: string, startDate: Date): Promise<AppointmentEntity[]> {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+
+    return this.db.appointments.filter((appointment) => {
+      if (appointment.userId !== userId) return false;
+      const d = appointment.date;
+      return d >= start && d < end;
+    });
   }
 
   async findConflict(

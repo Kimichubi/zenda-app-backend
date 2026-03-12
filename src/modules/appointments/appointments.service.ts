@@ -7,10 +7,15 @@ import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
 export class AppointmentsService {
   constructor(
     private readonly appointmentsRepository: AppointmentsRepository,
-  ) {}
+  ) { }
 
   findAll(userId: string) {
     return this.appointmentsRepository.findManyByUserId(userId);
+  }
+
+  getByWeek(userId: string, start: string) {
+    const startDate = new Date(start);
+    return this.appointmentsRepository.findByWeek(userId, startDate);
   }
 
   async create(userId: string, dto: CreateAppointmentDto) {

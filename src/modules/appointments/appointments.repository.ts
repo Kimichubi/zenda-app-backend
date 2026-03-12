@@ -6,6 +6,7 @@ export abstract class AppointmentsRepository {
     userId: string,
     date: Date,
   ): Promise<AppointmentEntity | null>;
+  abstract findByWeek(userId: string, startDate: Date): Promise<AppointmentEntity[]>;
   abstract create(
     userId: string,
     input: { clientId: string; date: Date },
