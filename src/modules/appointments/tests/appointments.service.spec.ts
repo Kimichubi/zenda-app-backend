@@ -2,6 +2,7 @@ import { ConflictException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { AppointmentsService } from "../appointments.service";
 import { AppointmentsRepository } from "../appointments.repository";
+import { ServicesRepository } from "../../services/services.repository";
 
 describe("AppointmentsService", () => {
   let service: AppointmentsService;
@@ -11,6 +12,9 @@ describe("AppointmentsService", () => {
     create: jest.fn(),
     updateStatus: jest.fn(),
   };
+  const servicesRepository = {
+    findById: jest.fn(),
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -19,6 +23,10 @@ describe("AppointmentsService", () => {
         {
           provide: AppointmentsRepository,
           useValue: appointmentsRepository,
+        },
+        {
+          provide: ServicesRepository,
+          useValue: servicesRepository,
         },
       ],
     }).compile();

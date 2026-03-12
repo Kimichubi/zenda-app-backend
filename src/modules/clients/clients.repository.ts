@@ -6,14 +6,18 @@ export abstract class ClientsRepository {
     email: string,
     userId: string,
   ): Promise<ClientEntity | null>;
+  abstract findByPhoneAndUserId(
+    phone: string,
+    userId: string,
+  ): Promise<ClientEntity | null>;
   abstract create(
     userId: string,
-    input: { name: string; phone: string; email?: string },
+    input: { name: string; phone: string; email?: string; notes?: string },
   ): Promise<ClientEntity>;
   abstract update(
     id: string,
     userId: string,
-    input: { name?: string; phone?: string; email?: string },
+    input: { name?: string; phone?: string; email?: string; notes?: string },
   ): Promise<ClientEntity | null>;
   abstract delete(id: string, userId: string): Promise<void>;
 }

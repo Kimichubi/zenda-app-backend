@@ -14,7 +14,7 @@ export class AuthService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async signup(dto: SignupDto) {
     const existing = await this.usersRepository.findByEmail(dto.email);
@@ -23,10 +23,20 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
+    const slug = dto.name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
     const user = await this.usersRepository.create({
       name: dto.name,
       email: dto.email,
       passwordHash,
+      phone: dto.phone ?? "",
+      businessName: dto.businessName ?? dto.name,
+      slug,
     });
 
     return this.buildAuthResponse(user.id, user.email, user.name);

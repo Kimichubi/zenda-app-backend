@@ -9,18 +9,18 @@ import { PaymentsService } from "./payments.service";
 const isTestEnv = process.env.NODE_ENV === "test";
 const repositoryProviders = isTestEnv
   ? [
-      {
-        provide: PaymentsRepository,
-        useExisting: PaymentsInMemoryRepository,
-      },
-    ]
+    {
+      provide: PaymentsRepository,
+      useExisting: PaymentsInMemoryRepository,
+    },
+  ]
   : [
-      PaymentsPrismaRepository,
-      {
-        provide: PaymentsRepository,
-        useExisting: PaymentsPrismaRepository,
-      },
-    ];
+    PaymentsPrismaRepository,
+    {
+      provide: PaymentsRepository,
+      useExisting: PaymentsPrismaRepository,
+    },
+  ];
 
 @Module({
   imports: [DatabaseModule],
@@ -30,6 +30,6 @@ const repositoryProviders = isTestEnv
     PaymentsInMemoryRepository,
     ...repositoryProviders,
   ],
-  exports: [PaymentsService],
+  exports: [PaymentsService, PaymentsRepository],
 })
-export class PaymentsModule {}
+export class PaymentsModule { }

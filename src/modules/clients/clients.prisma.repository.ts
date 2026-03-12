@@ -5,7 +5,7 @@ import { ClientsRepository } from "./clients.repository";
 
 @Injectable()
 export class ClientsPrismaRepository implements ClientsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async findManyByUserId(userId: string): Promise<ClientEntity[]> {
     return this.prisma.client.findMany({ where: { userId } });
@@ -18,9 +18,16 @@ export class ClientsPrismaRepository implements ClientsRepository {
     return this.prisma.client.findFirst({ where: { email, userId } });
   }
 
+  async findByPhoneAndUserId(
+    phone: string,
+    userId: string,
+  ): Promise<ClientEntity | null> {
+    return this.prisma.client.findFirst({ where: { phone, userId } });
+  }
+
   async create(
     userId: string,
-    input: { name: string; phone: string; email?: string },
+    input: { name: string; phone: string; email?: string; notes?: string },
   ): Promise<ClientEntity> {
     return this.prisma.client.create({
       data: {
@@ -28,6 +35,7 @@ export class ClientsPrismaRepository implements ClientsRepository {
         name: input.name,
         phone: input.phone,
         email: input.email,
+        notes: input.notes,
       },
     });
   }
@@ -35,7 +43,7 @@ export class ClientsPrismaRepository implements ClientsRepository {
   async update(
     id: string,
     userId: string,
-    input: { name?: string; phone?: string; email?: string },
+    input: { name?: string; phone?: string; email?: string; notes?: string },
   ): Promise<ClientEntity | null> {
     const existing = await this.prisma.client.findFirst({
       where: { id, userId },

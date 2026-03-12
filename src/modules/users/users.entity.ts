@@ -3,5 +3,8 @@ export interface UserEntity {
   name: string;
   email: string;
   passwordHash: string;
+  phone: string;
+  businessName: string;
+  slug: string;
   createdAt: Date;
 }

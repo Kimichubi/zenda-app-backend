@@ -9,7 +9,7 @@ import { ClientsRepository } from "./clients.repository";
 
 @Injectable()
 export class ClientsInMemoryRepository implements ClientsRepository {
-  constructor(private readonly db: InMemoryDatabaseService) {}
+  constructor(private readonly db: InMemoryDatabaseService) { }
 
   async findManyByUserId(userId: string): Promise<ClientEntity[]> {
     return this.db.clients.filter((client) => client.userId === userId);
@@ -26,9 +26,20 @@ export class ClientsInMemoryRepository implements ClientsRepository {
     );
   }
 
+  async findByPhoneAndUserId(
+    phone: string,
+    userId: string,
+  ): Promise<ClientEntity | null> {
+    return (
+      this.db.clients.find(
+        (client) => client.userId === userId && client.phone === phone,
+      ) ?? null
+    );
+  }
+
   async create(
     userId: string,
-    input: { name: string; phone: string; email?: string },
+    input: { name: string; phone: string; email?: string; notes?: string },
   ): Promise<ClientEntity> {
     const record: ClientRecord = {
       id: makeId(),
@@ -36,6 +47,7 @@ export class ClientsInMemoryRepository implements ClientsRepository {
       name: input.name,
       phone: input.phone,
       email: input.email ?? null,
+      notes: input.notes ?? null,
       createdAt: new Date(),
     };
 
@@ -46,7 +58,7 @@ export class ClientsInMemoryRepository implements ClientsRepository {
   async update(
     id: string,
     userId: string,
-    input: { name?: string; phone?: string; email?: string },
+    input: { name?: string; phone?: string; email?: string; notes?: string },
   ): Promise<ClientEntity | null> {
     const index = this.db.clients.findIndex(
       (client) => client.id === id && client.userId === userId,

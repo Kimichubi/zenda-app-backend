@@ -4,5 +4,6 @@ export interface ClientEntity {
   name: string;
   phone: string;
   email: string | null;
+  notes: string | null;
   createdAt: Date;
 }

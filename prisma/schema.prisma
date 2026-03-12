@@ -11,10 +11,27 @@ model User {
   name         String
   email        String        @unique
   passwordHash String
+  phone        String        @default("")
+  businessName String        @default("")
+  slug         String        @unique @default("")
   createdAt    DateTime      @default(now())
   clients      Client[]
   appointments Appointment[]
   schedules    Schedule[]
+  services     Service[]
+}
+
+model Service {
+  id           String        @id @default(uuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  duration     Int
+  price        Float
+  createdAt    DateTime      @default(now())
+  appointments Appointment[]
+
+  @@index([userId])
 }
 
 model Client {
@@ -22,6 +39,7 @@ model Client {
   name         String
   phone        String
   email        String?
+  notes        String?
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointments Appointment[]
@@ -36,8 +54,13 @@ model Appointment {
   client    Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
   userId    String
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String?
+  service   Service?          @relation(fields: [serviceId], references: [id])
   date      DateTime
-  status    AppointmentStatus @default(CONFIRMED)
+  startTime String?
+  endTime   String?
+  price     Float?
+  status    AppointmentStatus @default(SCHEDULED)
   payment   Payment?
   createdAt DateTime          @default(now())
 
@@ -52,6 +75,7 @@ model Payment {
   amount        Float
   status        PaymentStatus @default(PENDING)
   pixCode       String
+  paidAt        DateTime?
   createdAt     DateTime      @default(now())
 
   @@index([status])
@@ -69,7 +93,9 @@ model Schedule {
 }
 
 enum AppointmentStatus {
+  SCHEDULED
   CONFIRMED
+  COMPLETED
   CANCELLED
   NO_SHOW
 }
@@ -77,5 +103,7 @@ enum AppointmentStatus {
 enum PaymentStatus {
   PENDING
   PAID
+  OVERDUE
+  CANCELLED
   FAILED
 }

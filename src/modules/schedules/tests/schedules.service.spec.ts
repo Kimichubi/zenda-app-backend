@@ -1,13 +1,23 @@
 import { Test } from "@nestjs/testing";
 import { InMemoryDatabaseService } from "../../../infrastructure/database/in-memory-database.service";
 import { SchedulesService } from "../schedules.service";
+import { SchedulesRepository } from "../schedules.repository";
+import { SchedulesInMemoryRepository } from "../schedules.in-memory.repository";
 
 describe("SchedulesService", () => {
   let service: SchedulesService;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
-      providers: [InMemoryDatabaseService, SchedulesService],
+      providers: [
+        InMemoryDatabaseService,
+        SchedulesInMemoryRepository,
+        {
+          provide: SchedulesRepository,
+          useExisting: SchedulesInMemoryRepository,
+        },
+        SchedulesService,
+      ],
     }).compile();
 
     service = moduleRef.get(SchedulesService);

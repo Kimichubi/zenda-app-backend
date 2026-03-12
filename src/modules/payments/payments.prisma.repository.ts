@@ -34,6 +34,7 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
       amount: p.amount,
       status: p.status,
       pixCode: p.pixCode,
+      paidAt: p.paidAt ?? null,
       createdAt: p.createdAt,
     }));
   }
@@ -43,10 +44,10 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
   }
 
   async markAsPaid(id: string): Promise<PaymentEntity | null> {
-    return this.prisma.payment.update({ where: { id }, data: { status: "PAID" } });
+    return this.prisma.payment.update({ where: { id }, data: { status: "PAID", paidAt: new Date() } });
   }
 
   async cancel(id: string): Promise<PaymentEntity | null> {
-    return this.prisma.payment.update({ where: { id }, data: { status: "FAILED" } });
+    return this.prisma.payment.update({ where: { id }, data: { status: "CANCELLED" } });
   }
 }

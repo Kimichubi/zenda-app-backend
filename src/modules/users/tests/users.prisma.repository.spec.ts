@@ -40,6 +40,9 @@ describe("UsersPrismaRepository", () => {
       name: "Joao",
       email: "joao@test.com",
       passwordHash: "hash",
+      phone: "",
+      businessName: "",
+      slug: "joao",
     });
 
     expect(result.id).toBe("u1");

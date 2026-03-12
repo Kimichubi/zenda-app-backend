@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { AppointmentEntity } from "./appointments.entity";
 import { AppointmentsRepository } from "./appointments.repository";
+import { AppointmentStatus } from "../../infrastructure/database/in-memory-database.service";
 
 @Injectable()
 export class AppointmentsPrismaRepository implements AppointmentsRepository {
@@ -17,11 +18,13 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
   async findConflict(
     userId: string,
     date: Date,
+    startTime?: string,
   ): Promise<AppointmentEntity | null> {
     return this.prisma.appointment.findFirst({
       where: {
         userId,
         date,
+        ...(startTime ? { startTime } : {}),
         NOT: { status: "CANCELLED" },
       },
     });
@@ -42,16 +45,59 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     });
   }
 
+  async findByClientId(clientId: string): Promise<AppointmentEntity[]> {
+    return this.prisma.appointment.findMany({
+      where: { clientId },
+      orderBy: { date: "desc" },
+    });
+  }
+
+  async findTodayByUserId(userId: string): Promise<AppointmentEntity[]> {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    return this.prisma.appointment.findMany({
+      where: { userId, date: { gte: startOfDay, lt: endOfDay } },
+      orderBy: { date: "asc" },
+    });
+  }
+
+  async findUpcomingByUserId(userId: string): Promise<AppointmentEntity[]> {
+    const now = new Date();
+    return this.prisma.appointment.findMany({
+      where: {
+        userId,
+        date: { gt: now },
+        NOT: { status: "CANCELLED" },
+      },
+      orderBy: { date: "asc" },
+      take: 10,
+    });
+  }
+
   async create(
     userId: string,
-    input: { clientId: string; date: Date },
+    input: {
+      clientId: string;
+      serviceId?: string;
+      date: Date;
+      startTime?: string;
+      endTime?: string;
+      price?: number;
+    },
   ): Promise<AppointmentEntity> {
     return this.prisma.appointment.create({
       data: {
         userId,
         clientId: input.clientId,
+        serviceId: input.serviceId ?? null,
         date: input.date,
-        status: "CONFIRMED",
+        startTime: input.startTime ?? null,
+        endTime: input.endTime ?? null,
+        price: input.price ?? null,
+        status: "SCHEDULED",
       },
     });
   }
@@ -59,14 +105,12 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
   async updateStatus(
     id: string,
     userId: string,
-    status: "CONFIRMED" | "CANCELLED" | "NO_SHOW",
+    status: AppointmentStatus,
   ): Promise<AppointmentEntity | null> {
     const existing = await this.prisma.appointment.findFirst({
       where: { id, userId },
     });
-    if (!existing) {
-      return null;
-    }
+    if (!existing) return null;
 
     return this.prisma.appointment.update({
       where: { id },

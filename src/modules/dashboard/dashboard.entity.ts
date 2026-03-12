@@ -1,6 +1,8 @@
+import { AppointmentEntity } from "../appointments/appointments.entity";
+
 export interface DashboardSummary {
-  appointmentsCount: number;
-  paidCount: number;
-  pendingCount: number;
-  totalRevenue: number;
+  todayAppointments: AppointmentEntity[];
+  upcomingAppointments: AppointmentEntity[];
+  todayRevenue: number;
+  noShowClients: AppointmentEntity[];
 }

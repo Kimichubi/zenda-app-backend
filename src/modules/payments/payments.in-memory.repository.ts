@@ -19,6 +19,7 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
       amount: input.amount,
       status: "PENDING",
       pixCode: input.pixCode,
+      paidAt: null,
       createdAt: new Date(),
     };
 
@@ -39,6 +40,7 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
         amount: p.amount,
         status: p.status,
         pixCode: p.pixCode,
+        paidAt: p.paidAt ?? null,
         createdAt: p.createdAt,
       }));
   }
@@ -52,6 +54,7 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
     const idx = this.db.payments.findIndex((x) => x.id === id);
     if (idx === -1) return null;
     this.db.payments[idx].status = "PAID";
+    this.db.payments[idx].paidAt = new Date();
     return { ...this.db.payments[idx] };
   }
 
