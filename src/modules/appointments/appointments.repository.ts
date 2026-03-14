@@ -10,6 +10,7 @@ export abstract class AppointmentsRepository {
   ): Promise<AppointmentEntity | null>;
   abstract findByWeek(userId: string, startDate: Date): Promise<AppointmentEntity[]>;
   abstract findByClientId(clientId: string): Promise<AppointmentEntity[]>;
+  abstract findById(id: string): Promise<AppointmentEntity | null>;
   abstract findTodayByUserId(userId: string): Promise<AppointmentEntity[]>;
   abstract findUpcomingByUserId(userId: string): Promise<AppointmentEntity[]>;
   abstract create(

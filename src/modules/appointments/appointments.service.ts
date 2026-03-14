@@ -6,6 +6,8 @@ import { ServicesRepository } from "../services/services.repository";
 import { ClientsRepository } from "../clients/clients.repository";
 import { UsersRepository } from "../users/users.repository";
 import { WhatsappService } from "../../infrastructure/notifications/whatsapp.service";
+import { PaymentsRepository } from "../payments/payments.repository";
+import { PaymentStatus } from "../payments/payments.entity";
 
 @Injectable()
 export class AppointmentsService {
@@ -17,6 +19,7 @@ export class AppointmentsService {
     private readonly clientsRepository: ClientsRepository,
     private readonly usersRepository: UsersRepository,
     private readonly whatsappService: WhatsappService,
+    private readonly paymentsRepository: PaymentsRepository,
   ) { }
 
   findAll(userId: string) {
@@ -67,7 +70,14 @@ export class AppointmentsService {
       price,
     });
 
-    // Notify client via WhatsApp
+    if (price && price > 0) {
+      await this.paymentsRepository.create({
+        appointmentId: appointment.id,
+        amount: price,
+        status: "PENDING"
+      });
+    }
+
     if (dto.startTime) {
       this.notifyClient(userId, dto.clientId, serviceName, dto.date, dto.startTime).catch(err => {
         this.logger.error(`Failed to notify client: ${err.message}`);
@@ -75,6 +85,31 @@ export class AppointmentsService {
     }
 
     return appointment;
+  }
+
+  async update(userId: string, id: string, dto: UpdateAppointmentDto) {
+    const appointment = await this.appointmentsRepository.updateStatus(id, userId, dto.status || "SCHEDULED");
+    
+    if (appointment && dto.status) {
+      if (dto.status === "CANCELLED") {
+        await this.syncPaymentStatus(id, "CANCELLED", "Agendamento cancelado");
+      } else if (dto.status === "NO_SHOW") {
+        await this.syncPaymentStatus(id, "FAILED", "Cliente não compareceu");
+      }
+    }
+
+    return appointment;
+  }
+
+  private async syncPaymentStatus(appointmentId: string, status: PaymentStatus, reason: string) {
+    try {
+      const payment = await this.paymentsRepository.findByAppointmentId(appointmentId);
+      if (payment) {
+        await this.paymentsRepository.updateStatus(payment.id, status, reason);
+      }
+    } catch (err) {
+      this.logger.error(`Failed to sync payment status for appointment ${appointmentId}: ${err.message}`);
+    }
   }
 
   private async notifyClient(
@@ -98,12 +133,5 @@ export class AppointmentsService {
         businessName: user.businessName
       });
     }
-  }
-
-  async update(userId: string, id: string, dto: UpdateAppointmentDto) {
-    if (!dto.status) {
-      return null;
-    }
-    return this.appointmentsRepository.updateStatus(id, userId, dto.status);
   }
 }

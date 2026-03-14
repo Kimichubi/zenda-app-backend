@@ -52,6 +52,10 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     });
   }
 
+  async findById(id: string): Promise<AppointmentEntity | null> {
+    return this.prisma.appointment.findUnique({ where: { id } });
+  }
+
   async findTodayByUserId(userId: string): Promise<AppointmentEntity[]> {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());

@@ -48,6 +48,10 @@ export class AppointmentsInMemoryRepository implements AppointmentsRepository {
     return this.db.appointments.filter((a) => a.clientId === clientId);
   }
 
+  async findById(id: string): Promise<AppointmentEntity | null> {
+    return this.db.appointments.find((a) => a.id === id) ?? null;
+  }
+
   async findTodayByUserId(userId: string): Promise<AppointmentEntity[]> {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());

@@ -51,7 +51,8 @@ export interface PaymentRecord {
   appointmentId: string;
   amount: number;
   status: PaymentStatus;
-  pixCode: string;
+  pixCode: string | null;
+  reason: string | null;
   paidAt: Date | null;
   createdAt: Date;
 }

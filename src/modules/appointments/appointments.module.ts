@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { AppointmentsController } from "./appointments.controller";
 import { AppointmentsInMemoryRepository } from "./appointments.in-memory.repository";
@@ -9,6 +9,7 @@ import { ServicesModule } from "../services/services.module";
 import { ClientsModule } from "../clients/clients.module";
 import { UsersModule } from "../users/users.module";
 import { WhatsappService } from "../../infrastructure/notifications/whatsapp.service";
+import { PaymentsModule } from "../payments/payments.module";
 
 const isTestEnv = process.env.NODE_ENV === "test";
 const repositoryProviders = isTestEnv
@@ -27,7 +28,13 @@ const repositoryProviders = isTestEnv
   ];
 
 @Module({
-  imports: [DatabaseModule, ServicesModule, ClientsModule, UsersModule],
+  imports: [
+    DatabaseModule, 
+    ServicesModule, 
+    ClientsModule, 
+    UsersModule, 
+    forwardRef(() => PaymentsModule)
+  ],
   controllers: [AppointmentsController],
   providers: [
     AppointmentsService,
