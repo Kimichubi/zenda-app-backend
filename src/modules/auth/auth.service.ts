@@ -59,10 +59,12 @@ export class AuthService {
     return this.buildAuthResponse(user.id, user.email, user.name);
   }
 
-  refreshToken(userId: string, email: string) {
-    return {
-      accessToken: this.jwtService.sign({ sub: userId, email }),
-    };
+  async refreshToken(userId: string, email: string) {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    return this.buildAuthResponse(user.id, user.email, user.name);
   }
 
   private buildAuthResponse(userId: string, email: string, name: string) {

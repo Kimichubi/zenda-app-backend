@@ -12,6 +12,12 @@ export const envSchema = z.object({
     .url()
     .default("postgresql://postgres:postgres@localhost:5432/agendapix"),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
+  FRONTEND_URL: z.string().url().default("http://localhost:5173"),
+  
+  // WhatsApp Cloud API
+  WA_PHONE_NUMBER_ID: z.string().optional(),
+  WA_ACCESS_TOKEN: z.string().optional(),
+  WA_API_VERSION: z.string().default("v18.0"),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

@@ -10,6 +10,7 @@ export abstract class ClientsRepository {
     phone: string,
     userId: string,
   ): Promise<ClientEntity | null>;
+  abstract findById(id: string): Promise<ClientEntity | null>;
   abstract create(
     userId: string,
     input: { name: string; phone: string; email?: string; notes?: string },

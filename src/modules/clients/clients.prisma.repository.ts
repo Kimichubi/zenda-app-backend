@@ -25,6 +25,10 @@ export class ClientsPrismaRepository implements ClientsRepository {
     return this.prisma.client.findFirst({ where: { phone, userId } });
   }
 
+  async findById(id: string): Promise<ClientEntity | null> {
+    return this.prisma.client.findUnique({ where: { id } });
+  }
+
   async create(
     userId: string,
     input: { name: string; phone: string; email?: string; notes?: string },

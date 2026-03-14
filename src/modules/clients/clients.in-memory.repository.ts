@@ -37,6 +37,10 @@ export class ClientsInMemoryRepository implements ClientsRepository {
     );
   }
 
+  async findById(id: string): Promise<ClientEntity | null> {
+    return this.db.clients.find((client) => client.id === id) ?? null;
+  }
+
   async create(
     userId: string,
     input: { name: string; phone: string; email?: string; notes?: string },
