@@ -14,11 +14,24 @@ model User {
   phone        String        @default("")
   businessName String        @default("")
   slug         String        @unique @default("")
+  role         UserRole      @default(USER)
+  plan         UserPlan      @default(FREE)
   createdAt    DateTime      @default(now())
   clients      Client[]
   appointments Appointment[]
   schedules    Schedule[]
   services     Service[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserPlan {
+  FREE
+  PRO
+  ENTERPRISE
 }
 
 model Service {

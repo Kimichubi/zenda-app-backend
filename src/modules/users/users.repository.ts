@@ -13,8 +13,9 @@ export abstract class UsersRepository {
   abstract findByEmail(email: string): Promise<UserEntity | null>;
   abstract findById(id: string): Promise<UserEntity | null>;
   abstract findBySlug(slug: string): Promise<UserEntity | null>;
+  abstract findAll(): Promise<UserEntity[]>;
   abstract update(
     id: string,
-    input: { name?: string; phone?: string; businessName?: string; slug?: string },
+    input: { name?: string; phone?: string; businessName?: string; slug?: string; role?: any; plan?: any },
   ): Promise<UserEntity | null>;
 }

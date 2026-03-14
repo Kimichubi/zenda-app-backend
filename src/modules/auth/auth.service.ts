@@ -39,7 +39,7 @@ export class AuthService {
       slug,
     });
 
-    return this.buildAuthResponse(user.id, user.email, user.name);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
   }
 
   async login(dto: LoginDto) {
@@ -56,7 +56,7 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    return this.buildAuthResponse(user.id, user.email, user.name);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
   }
 
   async refreshToken(userId: string, email: string) {
@@ -64,10 +64,10 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException();
     }
-    return this.buildAuthResponse(user.id, user.email, user.name);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
   }
 
-  private buildAuthResponse(userId: string, email: string, name: string) {
+  private buildAuthResponse(userId: string, email: string, name: string, role: string, plan: string) {
     const accessToken = this.jwtService.sign(
       { sub: userId, email },
       { expiresIn: "15m" },
@@ -82,6 +82,8 @@ export class AuthService {
         id: userId,
         name,
         email,
+        role,
+        plan
       },
       accessToken,
       refreshToken,

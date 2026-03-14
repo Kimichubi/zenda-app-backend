@@ -11,6 +11,8 @@ export interface UserRecord {
   phone: string;
   businessName: string;
   slug: string;
+  role: string;
+  plan: string;
   createdAt: Date;
 }
 

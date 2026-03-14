@@ -18,6 +18,8 @@ export class UsersService {
       phone: user.phone,
       businessName: user.businessName,
       slug: user.slug,
+      role: user.role,
+      plan: user.plan,
       createdAt: user.createdAt,
     };
   }
@@ -37,6 +39,8 @@ export class UsersService {
       phone: user.phone,
       businessName: user.businessName,
       slug: user.slug,
+      role: user.role,
+      plan: user.plan,
       createdAt: user.createdAt,
     };
   }

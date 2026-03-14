@@ -15,34 +15,46 @@ export class UsersPrismaRepository implements UsersRepository {
     businessName: string;
     slug: string;
   }): Promise<UserEntity> {
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
-        name: input.name,
-        email: input.email,
-        passwordHash: input.passwordHash,
-        phone: input.phone,
-        businessName: input.businessName,
-        slug: input.slug,
+        ...input,
+        role: "USER",
+        plan: "FREE",
       },
     });
+    return user as UserEntity;
   }
 
   async findByEmail(email: string): Promise<UserEntity | null> {
-    return this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    return user as UserEntity | null;
   }
 
   async findById(id: string): Promise<UserEntity | null> {
-    return this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    return user as UserEntity | null;
   }
 
   async findBySlug(slug: string): Promise<UserEntity | null> {
-    return this.prisma.user.findUnique({ where: { slug } });
+    const user = await this.prisma.user.findUnique({ where: { slug } });
+    return user as UserEntity | null;
+  }
+
+  async findAll(): Promise<UserEntity[]> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return users as UserEntity[];
   }
 
   async update(
     id: string,
-    input: { name?: string; phone?: string; businessName?: string; slug?: string },
+    input: { name?: string; phone?: string; businessName?: string; slug?: string; role?: any; plan?: any },
   ): Promise<UserEntity | null> {
-    return this.prisma.user.update({ where: { id }, data: input });
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: input,
+    });
+    return user as UserEntity | null;
   }
 }

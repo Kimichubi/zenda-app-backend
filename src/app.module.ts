@@ -12,6 +12,8 @@ import { UsersModule } from "./modules/users/users.module";
 import { DatabaseModule } from "./infrastructure/database/database.module";
 import { envSchema } from "./infrastructure/config/env.validation";
 
+import { AdminModule } from "./modules/admin/admin.module";
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -28,6 +30,7 @@ import { envSchema } from "./infrastructure/config/env.validation";
     DashboardModule,
     ServicesModule,
     BookingModule,
+    AdminModule,
   ],
 })
 export class AppModule { }
