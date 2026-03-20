@@ -1,7 +1,11 @@
 import { ClientEntity } from "./clients.entity";
+import { FindClientsDto } from "./dto/find-clients.dto";
 
 export abstract class ClientsRepository {
-  abstract findManyByUserId(userId: string): Promise<ClientEntity[]>;
+  abstract findManyByUserId(
+    userId: string,
+    query: FindClientsDto,
+  ): Promise<{ data: ClientEntity[]; total: number }>;
   abstract findByEmailAndUserId(
     email: string,
     userId: string,

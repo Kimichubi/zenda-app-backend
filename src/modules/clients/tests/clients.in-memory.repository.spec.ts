@@ -29,12 +29,65 @@ describe('ClientsInMemoryRepository', () => {
     expect(db.clients.length).toBe(1);
   });
 
-  it('should find clients by user id', async () => {
-    await repository.create('user1', { name: 'John', phone: '123' });
+  it('should find clients by user id with pagination', async () => {
+    await repository.create('user1', { name: 'Client 1', phone: '111' });
+    await repository.create('user1', { name: 'Client 2', phone: '222' });
+    await repository.create('user1', { name: 'Client 3', phone: '333' });
     await repository.create('user2', { name: 'Jane', phone: '456' });
-    const clients = await repository.findManyByUserId('user1');
-    expect(clients.length).toBe(1);
-    expect(clients[0].name).toBe('John');
+    
+    const result = await repository.findManyByUserId('user1', { page: 1, limit: 2 });
+    expect(result.data.length).toBe(2);
+    expect(result.total).toBe(3);
+    expect(result.data[0].name).toBe('Client 1');
+    expect(result.data[1].name).toBe('Client 2');
+
+    const resultPage2 = await repository.findManyByUserId('user1', { page: 2, limit: 2 });
+    expect(resultPage2.data.length).toBe(1);
+    expect(resultPage2.total).toBe(3);
+    expect(resultPage2.data[0].name).toBe('Client 3');
+  });
+
+  it('should filter clients by search term (name, email, phone)', async () => {
+    await repository.create('user1', { name: 'John Doe', phone: '123', email: 'john@test.com' });
+    await repository.create('user1', { name: 'Jane Smith', phone: '456', email: 'jane@test.com' });
+    await repository.create('user1', { name: 'Bob Johnson', phone: '789', email: 'bob@test.com' });
+
+    // Search by name
+    const searchName = await repository.findManyByUserId('user1', { search: 'John' });
+    expect(searchName.data.length).toBe(2); // John Doe and Bob Johnson (contains 'ohn')
+    
+    // Search by phone
+    const searchPhone = await repository.findManyByUserId('user1', { search: '456' });
+    expect(searchPhone.data.length).toBe(1);
+    expect(searchPhone.data[0].name).toBe('Jane Smith');
+
+    // Search by email
+    const searchEmail = await repository.findManyByUserId('user1', { search: 'bob@test.com' });
+    expect(searchEmail.data.length).toBe(1);
+    expect(searchEmail.data[0].name).toBe('Bob Johnson');
+  });
+
+  it('should filter by date range', async () => {
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+
+    // This is a bit tricky with in-memory if we can't control createdAt
+    // But we can mock it or just rely on the fact that all created now will be after yesterday
+    await repository.create('user1', { name: 'Client 1', phone: '111' });
+    
+    const result = await repository.findManyByUserId('user1', { 
+      startDate: yesterday.toISOString(),
+      endDate: tomorrow.toISOString()
+    });
+    expect(result.data.length).toBe(1);
+
+    const resultEmpty = await repository.findManyByUserId('user1', { 
+      startDate: tomorrow.toISOString()
+    });
+    expect(resultEmpty.data.length).toBe(0);
   });
 
   it('should find by email and user id', async () => {
@@ -80,7 +133,8 @@ describe('ClientsInMemoryRepository', () => {
   it('should delete a client', async () => {
     const created = await repository.create('user1', { name: 'John', phone: '123' });
     await repository.delete(created.id, 'user1');
-    const clients = await repository.findManyByUserId('user1');
-    expect(clients.length).toBe(0);
+    const result = await repository.findManyByUserId('user1', {});
+    expect(result.data.length).toBe(0);
+    expect(result.total).toBe(0);
   });
 });

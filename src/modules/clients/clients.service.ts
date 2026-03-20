@@ -7,8 +7,9 @@ import { ClientsRepository } from "./clients.repository";
 export class ClientsService {
   constructor(private readonly clientsRepository: ClientsRepository) {}
 
-  findAll(userId: string) {
-    return this.clientsRepository.findManyByUserId(userId);
+  async findAll(userId: string) {
+    const result = await this.clientsRepository.findManyByUserId(userId, {});
+    return result.data;
   }
 
   async create(userId: string, dto: CreateClientDto) {

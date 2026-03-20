@@ -13,7 +13,9 @@ describe("ClientsPrismaRepository", () => {
       findUnique: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     },
+    $transaction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -51,11 +53,14 @@ describe("ClientsPrismaRepository", () => {
     expect(prismaMock.client.create).toHaveBeenCalled();
   });
 
-  it("should find many clients by user id", async () => {
-    prismaMock.client.findMany.mockResolvedValue([{ id: "c1" }]);
-    const result = await repository.findManyByUserId("u1");
-    expect(result).toEqual([{ id: "c1" }]);
-    expect(prismaMock.client.findMany).toHaveBeenCalledWith({ where: { userId: "u1" } });
+  it("should find many clients by user id with filtering and pagination", async () => {
+    prismaMock.$transaction.mockResolvedValue([[{ id: "c1" }], 1]);
+    
+    const result = await repository.findManyByUserId("u1", { page: 1, limit: 10 });
+    
+    expect(result.data).toEqual([{ id: "c1" }]);
+    expect(result.total).toBe(1);
+    expect(prismaMock.$transaction).toHaveBeenCalled();
   });
 
   it("should find client by email and user id", async () => {

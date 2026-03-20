@@ -6,13 +6,49 @@ import {
 } from "../../infrastructure/database/in-memory-database.service";
 import { ClientEntity } from "./clients.entity";
 import { ClientsRepository } from "./clients.repository";
+import { FindClientsDto } from "./dto/find-clients.dto";
 
 @Injectable()
 export class ClientsInMemoryRepository implements ClientsRepository {
   constructor(private readonly db: InMemoryDatabaseService) { }
 
-  async findManyByUserId(userId: string): Promise<ClientEntity[]> {
-    return this.db.clients.filter((client) => client.userId === userId);
+  async findManyByUserId(
+    userId: string,
+    query: FindClientsDto,
+  ): Promise<{ data: ClientEntity[]; total: number }> {
+    const { search, startDate, endDate, page = 1, limit = 10, status } = query;
+
+    let filtered = this.db.clients.filter((client) => client.userId === userId);
+
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      filtered = filtered.filter(
+        (client) =>
+          client.name.toLowerCase().includes(lowerSearch) ||
+          client.phone.includes(lowerSearch) ||
+          (client.email && client.email.toLowerCase().includes(lowerSearch)),
+      );
+    }
+
+    if (startDate) {
+      const start = new Date(startDate);
+      filtered = filtered.filter((client) => client.createdAt >= start);
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      filtered = filtered.filter((client) => client.createdAt <= end);
+    }
+
+    // Note: status is not yet in ClientRecord but is in FindClientsDto
+    // If it's added later, we can filter by it here
+    // For now, let's assume it might be there or ignore it if not in Entity
+
+    const total = filtered.length;
+    const skip = (page - 1) * limit;
+    const data = filtered.slice(skip, skip + limit);
+
+    return { data, total };
   }
 
   async findByEmailAndUserId(
