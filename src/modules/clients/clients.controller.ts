@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -13,6 +14,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { ClientsService } from "./clients.service";
 import { CreateClientDto } from "./dto/create-client.dto";
 import { UpdateClientDto } from "./dto/update-client.dto";
+import { FindClientsDto } from "./dto/find-clients.dto";
 
 @Controller("clients")
 @UseGuards(JwtAuthGuard)
@@ -20,8 +22,11 @@ export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Get()
-  findAll(@CurrentUser() user: { sub: string }) {
-    return this.clientsService.findAll(user.sub);
+  findAll(
+    @CurrentUser() user: { sub: string },
+    @Query() dto: FindClientsDto,
+  ) {
+    return this.clientsService.findAll(user.sub, dto);
   }
 
   @Post()

@@ -2,6 +2,7 @@ import { ConflictException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { ClientsService } from "../clients.service";
 import { ClientsRepository } from "../clients.repository";
+import { FindClientsDto } from "../dto/find-clients.dto";
 
 describe("ClientsService", () => {
   let service: ClientsService;
@@ -29,10 +30,23 @@ describe("ClientsService", () => {
   });
 
   describe("findAll", () => {
-    it("should return clients for a user", async () => {
-      clientsRepository.findManyByUserId.mockResolvedValue([{ id: "c1" }]);
-      const res = await service.findAll("u1");
-      expect(res).toEqual([{ id: "c1" }]);
+    it("should return clients for a user with pagination", async () => {
+      const mockResult = {
+        data: [{ id: "c1" }],
+        total: 1,
+      };
+      clientsRepository.findManyByUserId.mockResolvedValue(mockResult);
+      
+      const dto: FindClientsDto = { page: 1, limit: 10 };
+      const res = await service.findAll("u1", dto);
+      
+      expect(res).toEqual({
+        data: [{ id: "c1" }],
+        total: 1,
+        page: 1,
+        limit: 10,
+      });
+      expect(clientsRepository.findManyByUserId).toHaveBeenCalledWith("u1", dto);
     });
   });
 
