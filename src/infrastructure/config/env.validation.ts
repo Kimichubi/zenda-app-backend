@@ -14,10 +14,15 @@ export const envSchema = z.object({
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
   
-  // WhatsApp Cloud API
+  // WhatsApp Cloud API (Deprecated)
   WA_PHONE_NUMBER_ID: z.string().optional(),
   WA_ACCESS_TOKEN: z.string().optional(),
   WA_API_VERSION: z.string().default("v18.0"),
+
+  // WAHA
+  WHATSAPP_BASE_URL: z.string().url().default("http://localhost:3001"),
+  WHATSAPP_API_KEY: z.string().optional(),
+  WHATSAPP_SESSION: z.string().default("default"),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

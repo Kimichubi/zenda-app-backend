@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from "@nestjs/common";
+import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { AppointmentsRepository } from "./appointments.repository";
 import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
@@ -31,11 +31,10 @@ export class AppointmentsService {
     return this.appointmentsRepository.findByWeek(userId, startDate);
   }
 
-  findByClientId(clientId: string) {
-    return this.appointmentsRepository.findByClientId(clientId);
-  }
-
   async create(userId: string, dto: CreateAppointmentDto) {
+    if (!userId) {
+      throw new ConflictException("User ID is missing from request");
+    }
     const date = new Date(dto.date);
     const conflict = await this.appointmentsRepository.findConflict(
       userId,
@@ -78,18 +77,15 @@ export class AppointmentsService {
       });
     }
 
-    if (dto.startTime) {
-      this.notifyClient(userId, dto.clientId, serviceName, dto.date, dto.startTime).catch(err => {
-        this.logger.error(`Failed to notify client: ${err.message}`);
-      });
-    }
+    this.notifyClient(userId, dto.clientId, serviceName, dto.date, dto.startTime || "").catch(err => {
+      this.logger.error(`Failed to notify client on creation: ${err.message}`);
+    });
 
     return appointment;
   }
 
   async update(userId: string, id: string, dto: UpdateAppointmentDto) {
     const appointment = await this.appointmentsRepository.updateStatus(id, userId, dto.status || "SCHEDULED");
-    
     if (appointment && dto.status) {
       if (dto.status === "CANCELLED") {
         await this.syncPaymentStatus(id, "CANCELLED", "Agendamento cancelado");
@@ -97,8 +93,17 @@ export class AppointmentsService {
         await this.syncPaymentStatus(id, "FAILED", "Cliente não compareceu");
       }
     }
-
     return appointment;
+  }
+
+  async resendNotification(userId: string, id: string) {
+    const appointment: any = await this.appointmentsRepository.findById(id);
+    if (!appointment || appointment.userId !== userId) {
+      throw new NotFoundException("Appointment not found");
+    }
+    const serviceName = appointment.service?.name || "Serviço";
+    const dateStr = appointment.date instanceof Date ? appointment.date.toISOString() : appointment.date;
+    return this.notifyClient(userId, appointment.clientId, serviceName, dateStr, appointment.startTime || "");
   }
 
   private async syncPaymentStatus(appointmentId: string, status: PaymentStatus, reason: string) {
@@ -119,13 +124,13 @@ export class AppointmentsService {
     date: string,
     time: string
   ) {
+    if (!time) return;
     const [client, user] = await Promise.all([
       this.clientsRepository.findById(clientId),
       this.usersRepository.findById(userId)
     ]);
-
     if (client && user) {
-      await this.whatsappService.sendConfirmation(client.phone, {
+      await this.whatsappService.sendConfirmation(userId, client.phone, {
         clientName: client.name,
         serviceName,
         date: new Date(date).toLocaleDateString("pt-BR"),

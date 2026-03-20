@@ -1,51 +1,43 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Patch,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from "@nestjs/common";
-import { CurrentUser } from "../../common/decorators/current-user.decorator";
-import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { Controller, Get, Post, Put, Body, Param, UseGuards, Request, Query, Logger } from "@nestjs/common";
 import { AppointmentsService } from "./appointments.service";
 import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
+import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 
 @Controller("appointments")
 @UseGuards(JwtAuthGuard)
 export class AppointmentsController {
+  private readonly logger = new Logger(AppointmentsController.name);
+
   constructor(private readonly appointmentsService: AppointmentsService) { }
 
   @Get()
-  findAll(@CurrentUser() user: { sub: string }) {
-    return this.appointmentsService.findAll(user.sub);
-  }
-
-  @Post()
-  create(
-    @CurrentUser() user: { sub: string },
-    @Body() dto: CreateAppointmentDto,
-  ) {
-    return this.appointmentsService.create(user.sub, dto);
+  async findAll(@Request() req) {
+    return this.appointmentsService.findAll(req.user.id);
   }
 
   @Get("week")
-  getByWeek(
-    @CurrentUser() user: { sub: string },
-    @Query("start") start: string,
-  ) {
-    return this.appointmentsService.getByWeek(user.sub, start);
+  async getByWeek(@Request() req, @Query("start") start: string) {
+    return this.appointmentsService.getByWeek(req.user.id, start);
   }
 
-  @Patch(":id")
-  update(
-    @CurrentUser() user: { sub: string },
+  @Post(":id/resend-notification")
+  async resendNotification(@Request() req, @Param("id") id: string) {
+    this.logger.log(`Resending notification for appointment ${id}`);
+    return this.appointmentsService.resendNotification(req.user.id, id);
+  }
+
+  @Post()
+  async create(@Request() req, @Body() dto: CreateAppointmentDto) {
+    return this.appointmentsService.create(req.user.id, dto);
+  }
+
+  @Put(":id")
+  async update(
+    @Request() req,
     @Param("id") id: string,
     @Body() dto: UpdateAppointmentDto,
   ) {
-    return this.appointmentsService.update(user.sub, id, dto);
+    return this.appointmentsService.update(req.user.id, id, dto);
   }
 }

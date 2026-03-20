@@ -9,7 +9,7 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get("summary")
-  summary(@CurrentUser() user: { sub: string }) {
-    return this.dashboardService.summary(user.sub);
+  summary(@CurrentUser() user: { id: string }) {
+    return this.dashboardService.summary(user.id);
   }
 }

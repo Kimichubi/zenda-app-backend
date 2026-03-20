@@ -20,26 +20,26 @@ export class ServicesController {
   constructor(private readonly servicesService: ServicesService) { }
 
   @Get()
-  findAll(@CurrentUser() user: { sub: string }) {
-    return this.servicesService.findAll(user.sub);
+  findAll(@CurrentUser() user: { id: string }) {
+    return this.servicesService.findAll(user.id);
   }
 
   @Post()
-  create(@CurrentUser() user: { sub: string }, @Body() dto: CreateServiceDto) {
-    return this.servicesService.create(user.sub, dto);
+  create(@CurrentUser() user: { id: string }, @Body() dto: CreateServiceDto) {
+    return this.servicesService.create(user.id, dto);
   }
 
   @Patch(":id")
   update(
-    @CurrentUser() user: { sub: string },
+    @CurrentUser() user: { id: string },
     @Param("id") id: string,
     @Body() dto: UpdateServiceDto,
   ) {
-    return this.servicesService.update(user.sub, id, dto);
+    return this.servicesService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  remove(@CurrentUser() user: { sub: string }, @Param("id") id: string) {
-    return this.servicesService.remove(user.sub, id);
+  remove(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    return this.servicesService.remove(user.id, id);
   }
 }

@@ -10,15 +10,15 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   @Get("me")
-  me(@CurrentUser() user: { sub: string }) {
-    return this.usersService.me(user.sub);
+  me(@CurrentUser() user: { id: string }) {
+    return this.usersService.me(user.id);
   }
 
   @Patch("me")
   updateProfile(
-    @CurrentUser() user: { sub: string },
+    @CurrentUser() user: { id: string },
     @Body() dto: UpdateProfileDto,
   ) {
-    return this.usersService.updateProfile(user.sub, dto);
+    return this.usersService.updateProfile(user.id, dto);
   }
 }

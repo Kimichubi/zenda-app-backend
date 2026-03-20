@@ -12,7 +12,11 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     return this.prisma.appointment.findMany({
       where: { userId },
       orderBy: { date: "asc" },
-    });
+      include: {
+        client: true,
+        service: true,
+      }
+    }) as any;
   }
 
   async findConflict(
@@ -27,7 +31,7 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
         ...(startTime ? { startTime } : {}),
         NOT: { status: "CANCELLED" },
       },
-    });
+    }) as any;
   }
 
   async findByWeek(userId: string, startDate: Date): Promise<AppointmentEntity[]> {
@@ -41,19 +45,29 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
         userId,
         date: { gte: start, lt: end },
       },
+      include: {
+        client: true,
+        service: true,
+      },
       orderBy: { date: "asc" },
-    });
+    }) as any;
   }
 
   async findByClientId(clientId: string): Promise<AppointmentEntity[]> {
     return this.prisma.appointment.findMany({
       where: { clientId },
       orderBy: { date: "desc" },
-    });
+    }) as any;
   }
 
   async findById(id: string): Promise<AppointmentEntity | null> {
-    return this.prisma.appointment.findUnique({ where: { id } });
+    return this.prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        client: true,
+        service: true,
+      }
+    }) as any;
   }
 
   async findTodayByUserId(userId: string): Promise<AppointmentEntity[]> {
@@ -64,8 +78,12 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
 
     return this.prisma.appointment.findMany({
       where: { userId, date: { gte: startOfDay, lt: endOfDay } },
+      include: {
+        client: true,
+        service: true,
+      },
       orderBy: { date: "asc" },
-    });
+    }) as any;
   }
 
   async findUpcomingByUserId(userId: string): Promise<AppointmentEntity[]> {
@@ -76,9 +94,13 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
         date: { gt: now },
         NOT: { status: "CANCELLED" },
       },
+      include: {
+        client: true,
+        service: true,
+      },
       orderBy: { date: "asc" },
       take: 10,
-    });
+    }) as any;
   }
 
   async create(
@@ -92,18 +114,23 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
       price?: number;
     },
   ): Promise<AppointmentEntity> {
+    if (!userId) throw new Error("userId is required to create an appointment");
     return this.prisma.appointment.create({
       data: {
-        userId,
-        clientId: input.clientId,
-        serviceId: input.serviceId ?? null,
         date: input.date,
         startTime: input.startTime ?? null,
         endTime: input.endTime ?? null,
         price: input.price ?? null,
         status: "SCHEDULED",
+        user: { connect: { id: userId } },
+        client: { connect: { id: input.clientId } },
+        ...(input.serviceId ? { service: { connect: { id: input.serviceId } } } : {}),
       },
-    });
+      include: {
+        client: true,
+        service: true,
+      }
+    }) as any;
   }
 
   async updateStatus(
@@ -119,6 +146,10 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     return this.prisma.appointment.update({
       where: { id },
       data: { status },
-    });
+      include: {
+        client: true,
+        service: true,
+      }
+    }) as any;
   }
 }

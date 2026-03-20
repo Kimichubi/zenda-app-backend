@@ -1,6 +1,7 @@
 import { createParamDecorator, ExecutionContext } from "@nestjs/common";
 
 interface JwtPayload {
+  id: string;
   sub: string;
   email: string;
 }

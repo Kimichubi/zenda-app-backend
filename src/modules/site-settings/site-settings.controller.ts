@@ -1,0 +1,26 @@
+import { Controller, Get, Put, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { SiteSettingsService } from './site-settings.service';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Prisma } from '@prisma/client';
+
+@Controller('site-settings')
+export class SiteSettingsController {
+  constructor(private readonly siteSettingsService: SiteSettingsService) {}
+
+  @Get('public/:slug')
+  async getPublicSettings(@Param('slug') slug: string) {
+    return this.siteSettingsService.getSettingsBySlug(slug);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async getSettings(@Request() req) {
+    return this.siteSettingsService.getSettingsByUserId(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put()
+  async updateSettings(@Request() req, @Body() data: Prisma.SiteSettingsUpdateInput) {
+    return this.siteSettingsService.updateSettings(req.user.id, data);
+  }
+}

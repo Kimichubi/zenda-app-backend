@@ -10,12 +10,12 @@ export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
 
   @Get()
-  list(@CurrentUser() user: { sub: string }) {
-    return this.schedulesService.list(user.sub);
+  list(@CurrentUser() user: { id: string }) {
+    return this.schedulesService.list(user.id);
   }
 
   @Post()
-  upsert(@CurrentUser() user: { sub: string }, @Body() dto: UpsertScheduleDto) {
-    return this.schedulesService.upsert(user.sub, dto);
+  upsert(@CurrentUser() user: { id: string }, @Body() dto: UpsertScheduleDto) {
+    return this.schedulesService.upsert(user.id, dto);
   }
 }

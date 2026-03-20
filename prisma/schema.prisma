@@ -16,11 +16,13 @@ model User {
   slug         String        @unique @default("")
   role         UserRole      @default(USER)
   plan         UserPlan      @default(FREE)
+  whatsappStatus String      @default("DISCONNECTED")
   createdAt    DateTime      @default(now())
   clients      Client[]
   appointments Appointment[]
   schedules    Schedule[]
   services     Service[]
+  siteSettings SiteSettings?
 }
 
 enum UserRole {
@@ -32,6 +34,22 @@ enum UserPlan {
   FREE
   PRO
   ENTERPRISE
+}
+
+model SiteSettings {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  themeColor   String   @default("#000000")
+  heroTitle    String   @default("Agende seu horário")
+  heroSubtitle String   @default("O melhor serviço da região")
+  aboutText    String   @default("Focados em excelência e estilo.")
+  logoUrl      String?
+  instagramUrl String?
+  facebookUrl  String?
+  whatsappUrl  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Service {

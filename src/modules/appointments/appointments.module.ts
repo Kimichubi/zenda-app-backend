@@ -8,8 +8,8 @@ import { AppointmentsService } from "./appointments.service";
 import { ServicesModule } from "../services/services.module";
 import { ClientsModule } from "../clients/clients.module";
 import { UsersModule } from "../users/users.module";
-import { WhatsappService } from "../../infrastructure/notifications/whatsapp.service";
 import { PaymentsModule } from "../payments/payments.module";
+import { WhatsappModule } from "../whatsapp/whatsapp.module";
 
 const isTestEnv = process.env.NODE_ENV === "test";
 const repositoryProviders = isTestEnv
@@ -33,13 +33,13 @@ const repositoryProviders = isTestEnv
     ServicesModule, 
     ClientsModule, 
     UsersModule, 
+    WhatsappModule,
     forwardRef(() => PaymentsModule)
   ],
   controllers: [AppointmentsController],
   providers: [
     AppointmentsService,
     AppointmentsInMemoryRepository,
-    WhatsappService,
     ...repositoryProviders,
   ],
   exports: [AppointmentsRepository, AppointmentsService],
