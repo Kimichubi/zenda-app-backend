@@ -36,6 +36,11 @@ enum UserPlan {
   ENTERPRISE
 }
 
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model SiteSettings {
   id           String   @id @default(uuid())
   userId       String   @unique
@@ -71,6 +76,7 @@ model Client {
   phone        String
   email        String?
   notes        String?
+  status       ClientStatus  @default(ACTIVE)
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointments Appointment[]

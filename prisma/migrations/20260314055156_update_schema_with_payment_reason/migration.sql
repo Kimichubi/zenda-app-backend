@@ -30,8 +30,8 @@ ALTER TYPE "PaymentStatus" ADD VALUE 'CANCELLED';
 ALTER TABLE "Appointment" ADD COLUMN     "endTime" TEXT,
 ADD COLUMN     "price" DOUBLE PRECISION,
 ADD COLUMN     "serviceId" TEXT,
-ADD COLUMN     "startTime" TEXT,
-ALTER COLUMN "status" SET DEFAULT 'SCHEDULED';
+ADD COLUMN     "startTime" TEXT;
+-- ALTER COLUMN "status" SET DEFAULT 'SCHEDULED';
 
 -- AlterTable
 ALTER TABLE "Client" ADD COLUMN     "notes" TEXT;
