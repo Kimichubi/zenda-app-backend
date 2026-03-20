@@ -9,6 +9,8 @@ describe("UsersPrismaRepository", () => {
     user: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -28,24 +30,83 @@ describe("UsersPrismaRepository", () => {
   });
 
   it("should create user", async () => {
-    prismaMock.user.create.mockResolvedValue({
+    const mockUser = {
       id: "u1",
       name: "Joao",
       email: "joao@test.com",
       passwordHash: "hash",
+      role: "USER",
+      plan: "FREE",
       createdAt: new Date(),
-    });
+    };
+    prismaMock.user.create.mockResolvedValue(mockUser);
 
-    const result = await repository.create({
+    const input = {
       name: "Joao",
       email: "joao@test.com",
       passwordHash: "hash",
-      phone: "",
-      businessName: "",
+      phone: "123",
+      businessName: "Biz",
       slug: "joao",
-    });
+    };
 
-    expect(result.id).toBe("u1");
-    expect(prismaMock.user.create).toHaveBeenCalled();
+    const result = await repository.create(input);
+
+    expect(result).toEqual(mockUser);
+    expect(prismaMock.user.create).toHaveBeenCalledWith({
+      data: {
+        ...input,
+        role: "USER",
+        plan: "FREE",
+      },
+    });
+  });
+
+  it("should findByEmail", async () => {
+    const mockUser = { id: "u1", email: "test@test.com" };
+    prismaMock.user.findUnique.mockResolvedValue(mockUser);
+
+    const result = await repository.findByEmail("test@test.com");
+    expect(result).toEqual(mockUser);
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { email: "test@test.com" } });
+  });
+
+  it("should findById", async () => {
+    const mockUser = { id: "u1" };
+    prismaMock.user.findUnique.mockResolvedValue(mockUser);
+
+    const result = await repository.findById("u1");
+    expect(result).toEqual(mockUser);
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { id: "u1" } });
+  });
+
+  it("should findBySlug", async () => {
+    const mockUser = { id: "u1", slug: "slug" };
+    prismaMock.user.findUnique.mockResolvedValue(mockUser);
+
+    const result = await repository.findBySlug("slug");
+    expect(result).toEqual(mockUser);
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { slug: "slug" } });
+  });
+
+  it("should findAll", async () => {
+    const mockUsers = [{ id: "u1" }, { id: "u2" }];
+    prismaMock.user.findMany.mockResolvedValue(mockUsers);
+
+    const result = await repository.findAll();
+    expect(result).toEqual(mockUsers);
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith({ orderBy: { createdAt: "desc" } });
+  });
+
+  it("should update", async () => {
+    const mockUser = { id: "u1", name: "Updated" };
+    prismaMock.user.update.mockResolvedValue(mockUser);
+
+    const result = await repository.update("u1", { name: "Updated" });
+    expect(result).toEqual(mockUser);
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { name: "Updated" },
+    });
   });
 });

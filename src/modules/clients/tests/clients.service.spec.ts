@@ -28,38 +28,54 @@ describe("ClientsService", () => {
     jest.clearAllMocks();
   });
 
-  it("should create a client", async () => {
-    clientsRepository.findByEmailAndUserId.mockResolvedValue(null);
-    clientsRepository.create.mockResolvedValue({
-      id: "c1",
-      name: "Ana",
-      email: "ana@test.com",
-      phone: "11911111111",
-      userId: "u1",
-      createdAt: new Date(),
+  describe("findAll", () => {
+    it("should return clients for a user", async () => {
+      clientsRepository.findManyByUserId.mockResolvedValue([{ id: "c1" }]);
+      const res = await service.findAll("u1");
+      expect(res).toEqual([{ id: "c1" }]);
     });
-
-    const client = await service.create("u1", {
-      name: "Ana",
-      email: "ana@test.com",
-      phone: "11911111111",
-    });
-
-    expect(client.id).toBe("c1");
-    expect(clientsRepository.create).toHaveBeenCalled();
   });
 
-  it("should prevent duplicated email per user", async () => {
-    clientsRepository.findByEmailAndUserId.mockResolvedValue({
-      id: "c-existing",
+  describe("create", () => {
+    it("should create a client if email is not taken", async () => {
+      clientsRepository.findByEmailAndUserId.mockResolvedValue(null);
+      clientsRepository.create.mockResolvedValue({ id: "c1" });
+      
+      const res = await service.create("u1", { name: "John", email: "j@j.com", phone: "123" });
+      expect(res).toEqual({ id: "c1" });
+      expect(clientsRepository.create).toHaveBeenCalledWith("u1", { name: "John", email: "j@j.com", phone: "123" });
     });
 
-    await expect(
-      service.create("u1", {
-        name: "Ana",
-        email: "ana@test.com",
-        phone: "11911111111",
-      }),
-    ).rejects.toBeInstanceOf(ConflictException);
+    it("should create a client if no email provided", async () => {
+      clientsRepository.create.mockResolvedValue({ id: "c1" });
+      
+      const res = await service.create("u1", { name: "John", phone: "123" });
+      expect(res).toEqual({ id: "c1" });
+      expect(clientsRepository.create).toHaveBeenCalledWith("u1", { name: "John", phone: "123" });
+      expect(clientsRepository.findByEmailAndUserId).not.toHaveBeenCalled();
+    });
+
+    it("should throw conflict if email already exists", async () => {
+      clientsRepository.findByEmailAndUserId.mockResolvedValue({ id: "c-existing" });
+      
+      await expect(service.create("u1", { name: "John", email: "j@j.com", phone: "123" }))
+        .rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe("update", () => {
+    it("should update a client", async () => {
+      clientsRepository.update.mockResolvedValue({ id: "c1", name: "John Updated" });
+      const res = await service.update("u1", "c1", { name: "John Updated" });
+      expect(res).toEqual({ id: "c1", name: "John Updated" });
+    });
+  });
+
+  describe("remove", () => {
+    it("should remove a client", async () => {
+      clientsRepository.delete.mockResolvedValue(undefined);
+      await service.remove("u1", "c1");
+      expect(clientsRepository.delete).toHaveBeenCalledWith("c1", "u1");
+    });
   });
 });

@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { AuthModule } from "./modules/auth/auth.module";
 import { AppointmentsModule } from "./modules/appointments/appointments.module";
 import { BookingModule } from "./modules/booking/booking.module";
@@ -22,6 +24,10 @@ import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
       isGlobal: true,
       validate: (env) => envSchema.parse(env),
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100,
+    }]),
     ScheduleModule.forRoot(),
     DatabaseModule,
     AuthModule,
@@ -36,6 +42,12 @@ import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
     AdminModule,
     SiteSettingsModule,
     WhatsappModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule { }
