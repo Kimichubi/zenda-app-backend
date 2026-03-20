@@ -40,9 +40,9 @@ export class ClientsInMemoryRepository implements ClientsRepository {
       filtered = filtered.filter((client) => client.createdAt <= end);
     }
 
-    // Note: status is not yet in ClientRecord but is in FindClientsDto
-    // If it's added later, we can filter by it here
-    // For now, let's assume it might be there or ignore it if not in Entity
+    if (status) {
+      filtered = filtered.filter((client) => client.status === status);
+    }
 
     const total = filtered.length;
     const skip = (page - 1) * limit;
@@ -88,6 +88,7 @@ export class ClientsInMemoryRepository implements ClientsRepository {
       phone: input.phone,
       email: input.email ?? null,
       notes: input.notes ?? null,
+      status: "ACTIVE",
       createdAt: new Date(),
     };
 

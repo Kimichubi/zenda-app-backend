@@ -32,6 +32,7 @@ export interface ClientRecord {
   phone: string;
   email: string | null;
   notes: string | null;
+  status: "ACTIVE" | "INACTIVE";
   createdAt: Date;
 }
 

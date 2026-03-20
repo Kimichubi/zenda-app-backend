@@ -12,9 +12,13 @@ export class ClientsPrismaRepository implements ClientsRepository {
     userId: string,
     query: FindClientsDto,
   ): Promise<{ data: ClientEntity[]; total: number }> {
-    const { search, startDate, endDate, page = 1, limit = 10 } = query;
+    const { search, startDate, endDate, page = 1, limit = 10, status } = query;
 
     const where: any = { userId };
+
+    if (status) {
+      where.status = status;
+    }
 
     if (search) {
       where.OR = [

@@ -90,6 +90,26 @@ describe('ClientsInMemoryRepository', () => {
     expect(resultEmpty.data.length).toBe(0);
   });
 
+  it('should filter by status', async () => {
+    const c1 = await repository.create('user1', { name: 'Active Client', phone: '111' });
+    const c2 = await repository.create('user1', { name: 'Inactive Client', phone: '222' });
+    
+    // Manually update c2 status to INACTIVE for testing
+    // Since we don't have updateStatus yet, we'll use the generic update
+    // But update is only for name, phone, email, notes in interface
+    // Let's use the DB directly for testing status
+    const dbC2 = db.clients.find(c => c.id === c2.id);
+    if (dbC2) dbC2.status = 'INACTIVE';
+
+    const activeOnly = await repository.findManyByUserId('user1', { status: 'ACTIVE' as any });
+    expect(activeOnly.data.length).toBe(1);
+    expect(activeOnly.data[0].name).toBe('Active Client');
+
+    const inactiveOnly = await repository.findManyByUserId('user1', { status: 'INACTIVE' as any });
+    expect(inactiveOnly.data.length).toBe(1);
+    expect(inactiveOnly.data[0].name).toBe('Inactive Client');
+  });
+
   it('should find by email and user id', async () => {
     await repository.create('user1', { name: 'John', phone: '123', email: 'john@test.com' });
     const client = await repository.findByEmailAndUserId('john@test.com', 'user1');
