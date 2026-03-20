@@ -48,7 +48,24 @@ export class WhatsappService {
       return { status: "STARTING" };
     } catch (error) {
       const status = error.response?.status;
-      const detail = JSON.stringify(error.response?.data || error.message);
+      const data = error.response?.data;
+      
+      if (status === 422 && data?.message?.includes("already exists")) {
+        this.logger.log(`Sessão 'default' já existe, tentando iniciar...`);
+        try {
+          await axios.post(`${this.baseUrl}/api/sessions/default/start`, {}, {
+            headers: this.getHeaders(),
+            timeout: 10000
+          });
+          return { status: "STARTING" };
+        } catch (startError) {
+          const startDetail = JSON.stringify(startError.response?.data || startError.message);
+          this.logger.error(`Erro ao tentar iniciar sessão existente: ${startDetail}`);
+          return { status: "ERROR", detail: startDetail };
+        }
+      }
+
+      const detail = JSON.stringify(data || error.message);
       this.logger.error(`Erro ${status} ao iniciar sessão no WAHA para default: ${detail}`);
       return { status: "ERROR", detail };
     }
@@ -56,13 +73,15 @@ export class WhatsappService {
 
   async getQRCode(userId: string) {
     try {
-      const response = await axios.get(`${this.baseUrl}/api/sessions/default/qr`, {
-        headers: this.getHeaders(),
-        responseType: "arraybuffer",
+      const response = await axios.get(`${this.baseUrl}/api/default/auth/qr`, {
+        headers: {
+          ...this.getHeaders(),
+          "Accept": "application/json",
+        },
       });
-      return Buffer.from(response.data, "binary").toString("base64");
+      return response.data.data; // WAHA returns { mimetype, data } where data is base64
     } catch (error) {
-      this.logger.warn(`Não foi possível obter QR Code para default (Sessão pode não estar em SCANNING)`);
+      this.logger.warn(`Não foi possível obter QR Code para default: ${error.message}`);
       return null;
     }
   }

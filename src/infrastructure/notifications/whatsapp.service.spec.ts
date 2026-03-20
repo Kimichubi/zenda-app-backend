@@ -101,15 +101,25 @@ describe('WhatsappService', () => {
   });
 
   describe('getQRCode', () => {
-    it('should return base64 encoded QR code', async () => {
-      const mockBuffer = Buffer.from('qr-code-data');
+    it('should return base64 encoded QR code from JSON response', async () => {
       mockedAxios.get.mockResolvedValueOnce({
-        data: mockBuffer,
+        data: {
+          mimetype: 'image/png',
+          data: 'base64-qr-data'
+        },
         status: 200,
       });
 
       const result = await service.getQRCode('test-user');
-      expect(result).toBe(mockBuffer.toString('base64'));
+      expect(result).toBe('base64-qr-data');
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        'http://localhost:3001/api/default/auth/qr',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Accept': 'application/json'
+          })
+        })
+      );
     });
 
     it('should return null on error', async () => {
