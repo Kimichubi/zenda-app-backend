@@ -99,6 +99,35 @@ export class AppointmentsInMemoryRepository implements AppointmentsRepository {
     return record;
   }
 
+  async update(
+    id: string,
+    userId: string,
+    input: {
+      status?: AppointmentStatus;
+      serviceId?: string;
+      date?: string | Date;
+      startTime?: string;
+      endTime?: string;
+      price?: number;
+    },
+  ): Promise<AppointmentEntity | null> {
+    const idx = this.db.appointments.findIndex(
+      (a) => a.id === id && a.userId === userId,
+    );
+    if (idx < 0) return null;
+
+    const { date, serviceId, ...rest } = input;
+
+    this.db.appointments[idx] = {
+      ...this.db.appointments[idx],
+      ...rest,
+      ...(date ? { date: new Date(date) } : {}),
+      ...(serviceId !== undefined ? { serviceId: serviceId ?? null } : {}),
+    };
+
+    return this.db.appointments[idx];
+  }
+
   async updateStatus(
     id: string,
     userId: string,

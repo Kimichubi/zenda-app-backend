@@ -12,5 +12,9 @@ export interface UserEntity {
   slug: string;
   role: UserRole;
   plan: UserPlan;
+  pixKeyType?: string | null;
+  pixKey?: string | null;
+  pixName?: string | null;
+  pixCity?: string | null;
   createdAt: Date;
 }

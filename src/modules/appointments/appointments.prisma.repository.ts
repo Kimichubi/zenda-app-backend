@@ -66,6 +66,7 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
       include: {
         client: true,
         service: true,
+        user: true,
       }
     }) as any;
   }

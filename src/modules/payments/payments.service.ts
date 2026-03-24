@@ -4,6 +4,7 @@ import { PaymentQueueService } from "../../infrastructure/queues/payment.queue.s
 import { CreatePixPaymentDto } from "./dto/create-pix-payment.dto";
 import { PaymentsRepository } from "./payments.repository";
 import { AppointmentsRepository } from "../appointments/appointments.repository";
+import { PixGenerator } from "../../common/utils/pix-generator";
 
 @Injectable()
 export class PaymentsService {
@@ -17,17 +18,34 @@ export class PaymentsService {
   async createPix(dto: CreatePixPaymentDto) {
     let amount = dto.amount;
 
+    const appointment: any = await this.appointmentsRepository.findById(dto.appointmentId);
+    if (!appointment) throw new NotFoundException("Appointment not found");
+
     if (!amount) {
-      const appointment = await this.appointmentsRepository.findById(dto.appointmentId);
-      if (!appointment) throw new NotFoundException("Appointment not found");
       amount = appointment.price || 0;
     }
 
-    if (amount <= 0) {
+    const finalAmount = amount as number;
+
+    if (finalAmount <= 0) {
       throw new Error("Payment amount must be greater than zero");
     }
 
-    const pixCode = `PIX-${makeId()}`;
+    const user: any = appointment.user;
+    let pixCode = `PIX-${makeId()}`;
+
+    // Geração real de Pix se o usuário tiver configuração
+    if (user.pixKey && user.pixName && user.pixCity) {
+      pixCode = PixGenerator.generate({
+        key: user.pixKey,
+        name: user.pixName,
+        city: user.pixCity,
+        amount: finalAmount,
+        description: `Zenda: ${appointment.service?.name || 'Serviço'}`,
+        txid: appointment.id.replace(/-/g, "").substring(0, 25)
+      });
+    }
+
     const existing = await this.paymentsRepository.findByAppointmentId(dto.appointmentId);
     
     if (existing) {
@@ -36,7 +54,7 @@ export class PaymentsService {
 
     const payment = await this.paymentsRepository.createPix({
       appointmentId: dto.appointmentId,
-      amount: amount as number,
+      amount: finalAmount,
       pixCode: pixCode,
     });
 
@@ -44,6 +62,40 @@ export class PaymentsService {
       await this.paymentQueueService.enqueuePaymentStatusCheck(payment.id);
     }
     return payment;
+  }
+
+  async getPublicPaymentDetails(paymentId: string) {
+    const payment = await this.paymentsRepository.findById(paymentId);
+    if (!payment) throw new NotFoundException("Payment not found");
+
+    const appointment: any = await this.appointmentsRepository.findById(payment.appointmentId);
+    if (!appointment) throw new NotFoundException("Appointment not found");
+
+    const user = appointment.user;
+    
+    let pixCode = payment.pixCode;
+
+    // Se o usuário tem configuração Pix mas o pagamento não tem código (ou é simulado), geramos na hora
+    if (!pixCode?.startsWith("000201") && user.pixKey && user.pixName && user.pixCity) {
+      pixCode = PixGenerator.generate({
+        key: user.pixKey,
+        name: user.pixName,
+        city: user.pixCity,
+        amount: payment.amount,
+        description: `Zenda: ${appointment.service?.name || 'Serviço'}`,
+        txid: payment.id.replace(/-/g, "").substring(0, 25)
+      });
+    }
+
+    return {
+      id: payment.id,
+      amount: payment.amount,
+      status: payment.status,
+      pixCode,
+      clientName: appointment.client.name,
+      serviceName: appointment.service?.name,
+      businessName: user.businessName || user.name,
+    };
   }
 
   async listForUser(userId: string) {

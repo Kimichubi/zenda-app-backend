@@ -10,5 +10,8 @@ export interface AppointmentEntity {
   endTime: string | null;
   price: number | null;
   status: AppointmentStatus;
+  service?: { name: string };
+  client?: { name: string };
+  user?: { name: string; businessName?: string; pixKey?: string; pixName?: string; pixCity?: string };
   createdAt: Date;
 }

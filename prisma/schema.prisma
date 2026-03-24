@@ -17,6 +17,13 @@ model User {
   role         UserRole      @default(USER)
   plan         UserPlan      @default(FREE)
   whatsappStatus String      @default("DISCONNECTED")
+  
+  // Pix Configuration
+  pixKeyType   String?
+  pixKey       String?
+  pixName      String?
+  pixCity      String?
+
   createdAt    DateTime      @default(now())
   clients      Client[]
   appointments Appointment[]

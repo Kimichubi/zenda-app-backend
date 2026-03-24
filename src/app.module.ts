@@ -17,6 +17,7 @@ import { envSchema } from "./infrastructure/config/env.validation";
 import { AdminModule } from "./modules/admin/admin.module";
 import { SiteSettingsModule } from "./modules/site-settings/site-settings.module";
 import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
     AdminModule,
     SiteSettingsModule,
     WhatsappModule,
+    ReportsModule,
   ],
   providers: [
     {

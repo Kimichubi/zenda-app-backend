@@ -1,6 +1,7 @@
 import { Module, forwardRef } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { PaymentsController } from "./payments.controller";
+import { PaymentsPublicController } from "./payments.public.controller";
 import { PaymentsInMemoryRepository } from "./payments.in-memory.repository";
 import { PaymentsPrismaRepository } from "./payments.prisma.repository";
 import { PaymentsRepository } from "./payments.repository";
@@ -25,7 +26,7 @@ const repositoryProviders = isTestEnv
 
 @Module({
   imports: [DatabaseModule, forwardRef(() => AppointmentsModule)],
-  controllers: [PaymentsController],
+  controllers: [PaymentsController, PaymentsPublicController],
   providers: [
     PaymentsService,
     PaymentsInMemoryRepository,

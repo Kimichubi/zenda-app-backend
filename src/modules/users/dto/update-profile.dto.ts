@@ -16,4 +16,20 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   slug?: string;
+
+  @IsOptional()
+  @IsString()
+  pixKeyType?: string;
+
+  @IsOptional()
+  @IsString()
+  pixKey?: string;
+
+  @IsOptional()
+  @IsString()
+  pixName?: string;
+
+  @IsOptional()
+  @IsString()
+  pixCity?: string;
 }

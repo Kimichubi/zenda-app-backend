@@ -20,13 +20,26 @@ export class UsersService {
       slug: user.slug,
       role: user.role,
       plan: user.plan,
+      pixKeyType: user.pixKeyType,
+      pixKey: user.pixKey,
+      pixName: user.pixName,
+      pixCity: user.pixCity,
       createdAt: user.createdAt,
     };
   }
 
   async updateProfile(
     userId: string,
-    input: { name?: string; phone?: string; businessName?: string; slug?: string },
+    input: { 
+      name?: string; 
+      phone?: string; 
+      businessName?: string; 
+      slug?: string;
+      pixKeyType?: string;
+      pixKey?: string;
+      pixName?: string;
+      pixCity?: string;
+    },
   ) {
     const user = await this.usersRepository.update(userId, input);
     if (!user) {
@@ -41,6 +54,10 @@ export class UsersService {
       slug: user.slug,
       role: user.role,
       plan: user.plan,
+      pixKeyType: user.pixKeyType,
+      pixKey: user.pixKey,
+      pixName: user.pixName,
+      pixCity: user.pixCity,
       createdAt: user.createdAt,
     };
   }
