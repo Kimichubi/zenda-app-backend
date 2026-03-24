@@ -6,46 +6,67 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id           String        @id @default(uuid())
-  name         String
-  email        String        @unique
-  passwordHash String
-  phone        String        @default("")
-  businessName String        @default("")
-  slug         String        @unique @default("")
-  role         UserRole      @default(USER)
-  plan         UserPlan      @default(FREE)
-  whatsappStatus String      @default("DISCONNECTED")
-  
-  // Pix Configuration
-  pixKeyType   String?
-  pixKey       String?
-  pixName      String?
-  pixCity      String?
+model Business {
+  id             String         @id @default(uuid())
+  ownerId        String         @unique
+  owner          User           @relation("BusinessOwner", fields: [ownerId], references: [id])
+  name           String
+  slug           String         @unique
+  pixKey         String?
+  loyaltyConfig  LoyaltyConfig?
+  staff          User[]         @relation("BusinessStaff")
+  products       Product[]
+  sales          Sale[]
+  categories     Category[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
 
-  createdAt    DateTime      @default(now())
-  clients      Client[]
-  appointments Appointment[]
-  schedules    Schedule[]
-  services     Service[]
-  siteSettings SiteSettings?
+model User {
+  id              String         @id @default(uuid())
+  name            String
+  email           String         @unique
+  passwordHash    String
+  phone           String         @default("")
+  businessName    String         @default("")
+  slug            String         @unique @default("")
+  role            UserRole       @default(USER)
+  plan            UserPlan       @default(FREE)
+  whatsappStatus  String         @default("DISCONNECTED")
+  
+  // Enterprise fields
+  businessId      String?
+  business        Business?      @relation("BusinessStaff", fields: [businessId], references: [id])
+  ownedBusiness   Business?      @relation("BusinessOwner")
+  baseCommission  Float          @default(0)
+  
+  // Pix Config
+  pixKeyType      String?
+  pixKey          String?
+  pixName         String?
+  pixCity         String?
+
+  clients         Client[]
+  appointments    Appointment[]
+  commissions     Commission[]
+  sales           Sale[]
+  schedules       Schedule[]
+  services        Service[]
+  siteSettings    SiteSettings?
+  createdAt       DateTime       @default(now())
 }
 
 enum UserRole {
-  USER
   ADMIN
+  MANAGER
+  PROFESSIONAL
+  USER
 }
 
 enum UserPlan {
   FREE
   PRO
   ENTERPRISE
-}
-
-enum ClientStatus {
-  ACTIVE
-  INACTIVE
 }
 
 model SiteSettings {
@@ -78,35 +99,99 @@ model Service {
 }
 
 model Client {
-  id           String        @id @default(uuid())
-  name         String
-  phone        String
-  email        String?
-  notes        String?
-  status       ClientStatus  @default(ACTIVE)
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  appointments Appointment[]
-  createdAt    DateTime      @default(now())
+  id            String          @id @default(uuid())
+  name          String
+  phone         String
+  email         String?
+  notes         String?
+  status        ClientStatus    @default(ACTIVE)
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pointsBalance Int             @default(0)
+  appointments  Appointment[]
+  sales         Sale[]
+  createdAt     DateTime        @default(now())
 
   @@index([userId])
 }
 
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Product {
+  id           String              @id @default(uuid())
+  businessId   String
+  business     Business            @relation(fields: [businessId], references: [id])
+  name         String
+  sku          String?
+  price        Float
+  costPrice    Float?
+  stock        Int                 @default(0)
+  minStock     Int                 @default(0)
+  movements    InventoryMovement[]
+  saleItems    SaleItem[]
+  createdAt    DateTime            @default(now())
+}
+
+model InventoryMovement {
+  id        String       @id @default(uuid())
+  productId String
+  product   Product      @relation(fields: [productId], references: [id])
+  quantity  Int
+  type      MovementType
+  reason    String?
+  createdAt DateTime     @default(now())
+}
+
+enum MovementType {
+  IN
+  OUT
+}
+
+model Sale {
+  id             String       @id @default(uuid())
+  businessId     String
+  business       Business     @relation(fields: [businessId], references: [id])
+  customerId     String?
+  client         Client?      @relation(fields: [customerId], references: [id])
+  sellerId       String
+  seller         User         @relation(fields: [sellerId], references: [id])
+  totalAmount    Float
+  paymentMethod  String
+  items          SaleItem[]
+  commission     Commission?
+  loyaltyPoints  Int          @default(0)
+  createdAt      DateTime     @default(now())
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+}
+
 model Appointment {
-  id        String            @id @default(uuid())
-  clientId  String
-  client    Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  serviceId String?
-  service   Service?          @relation(fields: [serviceId], references: [id])
-  date      DateTime
-  startTime String?
-  endTime   String?
-  price     Float?
-  status    AppointmentStatus @default(SCHEDULED)
-  payment   Payment?
-  createdAt DateTime          @default(now())
+  id           String            @id @default(uuid())
+  clientId     String
+  client       Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId    String?
+  service      Service?          @relation(fields: [serviceId], references: [id])
+  date         DateTime
+  startTime    String?
+  endTime      String?
+  price        Float?
+  status       AppointmentStatus @default(SCHEDULED)
+  payment      Payment?
+  commission   Commission?
+  createdAt    DateTime          @default(now())
 
   @@index([userId, date])
   @@index([clientId])
@@ -126,6 +211,36 @@ model Payment {
   @@index([status])
 }
 
+model Commission {
+  id            String           @id @default(uuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id])
+  appointmentId String?          @unique
+  appointment   Appointment?     @relation(fields: [appointmentId], references: [id])
+  saleId        String?          @unique
+  sale          Sale?            @relation(fields: [saleId], references: [id])
+  amount        Float
+  percentage    Float
+  status        CommissionStatus @default(PENDING)
+  paidAt        DateTime?
+  createdAt     DateTime         @default(now())
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model LoyaltyConfig {
+  id              String   @id @default(uuid())
+  businessId      String   @unique
+  business        Business @relation(fields: [businessId], references: [id])
+  pointsPerReal   Float    @default(1)
+  minRedeemPoints Int      @default(100)
+  active          Boolean  @default(true)
+}
+
 model Schedule {
   id        String @id @default(uuid())
   userId    String
@@ -135,6 +250,13 @@ model Schedule {
   endTime   String
 
   @@unique([userId, weekday])
+}
+
+model Category {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  name       String
 }
 
 enum AppointmentStatus {

@@ -61,7 +61,8 @@ export class ReportsService {
   }
 
   async exportPaymentsExcel(userId: string) {
-    const payments = await this.paymentsRepository.findManyByUserId(userId);
+    const paymentsResponse = await this.paymentsRepository.findManyByUserId(userId, { limit: 10000 });
+    const payments = paymentsResponse.data;
     
     const { workbook, worksheet } = await this.createStyledWorkbook("Financeiro", [
       { header: "DATA CRIAÇÃO", key: "createdAt", width: 20 },

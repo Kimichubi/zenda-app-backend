@@ -10,19 +10,21 @@ export class DashboardService {
   ) { }
 
   async summary(userId: string) {
-    const [todayAppointments, upcomingAppointments, payments] =
+    const [todayAppointments, upcomingAppointments, paymentsResponse] =
       await Promise.all([
         this.appointmentsRepository.findTodayByUserId(userId),
         this.appointmentsRepository.findUpcomingByUserId(userId),
-        this.paymentsRepository.findManyByUserId(userId),
+        this.paymentsRepository.findManyByUserId(userId, { limit: 1000 }), // Pegar bastante para o dashboard
       ]);
+
+    const payments = paymentsResponse.data;
 
     const todayRevenue = payments
       .filter((p) => p.status === "PAID" && p.paidAt)
       .filter((p) => {
         const today = new Date();
         return (
-          p.paidAt!.toDateString() === today.toDateString()
+          new Date(p.paidAt!).toDateString() === today.toDateString()
         );
       })
       .reduce((sum, p) => sum + p.amount, 0);

@@ -2,6 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { PaymentEntity, PaymentStatus } from "./payments.entity";
 import { PaymentsRepository } from "./payments.repository";
+import { Prisma } from "@prisma/client";
+import { FindPaymentsDto } from "./dto/find-payments.dto";
 
 @Injectable()
 export class PaymentsPrismaRepository implements PaymentsRepository {
@@ -14,21 +16,21 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
     status?: PaymentStatus;
     reason?: string;
   }): Promise<PaymentEntity> {
-    const p = await this.prisma.payment.create({
+    const payment = await this.prisma.payment.create({
       data: {
         appointmentId: input.appointmentId,
         amount: input.amount,
-        pixCode: input.pixCode ?? null,
-        status: input.status ?? "PENDING",
-        reason: input.reason ?? null,
+        pixCode: input.pixCode,
+        status: input.status || "PENDING",
+        reason: input.reason,
       },
     });
-
     return {
-      ...p,
-      pixCode: p.pixCode ?? null,
-      reason: p.reason ?? null,
-      paidAt: p.paidAt ?? null,
+      ...payment,
+      status: payment.status as PaymentStatus,
+      pixCode: payment.pixCode ?? null,
+      reason: payment.reason ?? null,
+      paidAt: payment.paidAt ?? null,
     };
   }
 
@@ -37,12 +39,21 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
     amount: number;
     pixCode: string;
   }): Promise<PaymentEntity> {
-    return this.create({
-      appointmentId: input.appointmentId,
-      amount: input.amount,
-      pixCode: input.pixCode,
-      status: "PENDING",
+    const p = await this.prisma.payment.create({
+      data: {
+        appointmentId: input.appointmentId,
+        amount: input.amount,
+        pixCode: input.pixCode,
+        status: "PENDING",
+      },
     });
+    return {
+      ...p,
+      status: p.status as PaymentStatus,
+      pixCode: p.pixCode ?? null,
+      reason: p.reason ?? null,
+      paidAt: p.paidAt ?? null,
+    };
   }
 
   async findManyByUserId(
@@ -118,7 +129,7 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
   }
 
   async findByAppointmentId(appointmentId: string): Promise<PaymentEntity | null> {
-    const p = await this.prisma.payment.findUnique({ where: { appointmentId } });
+    const p = await this.prisma.payment.findFirst({ where: { appointmentId } });
     if (!p) return null;
     return {
       ...p,
@@ -130,9 +141,9 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
   }
 
   async markAsPaid(id: string): Promise<PaymentEntity | null> {
-    const p = await this.prisma.payment.update({ 
-      where: { id }, 
-      data: { status: "PAID", paidAt: new Date() } 
+    const p = await this.prisma.payment.update({
+      where: { id },
+      data: { status: "PAID", paidAt: new Date() },
     });
     return {
       ...p,
@@ -144,9 +155,9 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
   }
 
   async cancel(id: string, reason?: string): Promise<PaymentEntity | null> {
-    const p = await this.prisma.payment.update({ 
-      where: { id }, 
-      data: { status: "CANCELLED", reason } 
+    const p = await this.prisma.payment.update({
+      where: { id },
+      data: { status: "CANCELLED", reason },
     });
     return {
       ...p,
@@ -162,7 +173,7 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
     if (reason !== undefined) data.reason = reason;
     if (pixCode !== undefined) data.pixCode = pixCode;
     if (status === "PAID") data.paidAt = new Date();
-    
+
     const p = await this.prisma.payment.update({ where: { id }, data });
     return {
       ...p,
