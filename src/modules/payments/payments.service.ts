@@ -5,6 +5,9 @@ import { CreatePixPaymentDto } from "./dto/create-pix-payment.dto";
 import { PaymentsRepository } from "./payments.repository";
 import { AppointmentsRepository } from "../appointments/appointments.repository";
 import { PixGenerator } from "../../common/utils/pix-generator";
+import { FindPaymentsDto } from "./dto/find-payments.dto";
+import { PaginatedResponse } from "../../common/interfaces/paginated-response.interface";
+import { PaymentEntity } from "./payments.entity";
 
 @Injectable()
 export class PaymentsService {
@@ -98,8 +101,16 @@ export class PaymentsService {
     };
   }
 
-  async listForUser(userId: string) {
-    return this.paymentsRepository.findManyByUserId(userId);
+  async listForUser(
+    userId: string,
+    query: FindPaymentsDto = {},
+  ): Promise<PaginatedResponse<PaymentEntity>> {
+    const { page = 1, limit = 10 } = query;
+    const { data, total } = await this.paymentsRepository.findManyByUserId(
+      userId,
+      query,
+    );
+    return { data, total, page, limit };
   }
 
   async getById(id: string) {

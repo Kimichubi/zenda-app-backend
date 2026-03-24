@@ -10,17 +10,27 @@ export class ReportsController {
 
   @Get("appointments/export")
   async exportAppointments(@Request() req, @Res() res: Response) {
-    const csv = await this.reportsService.exportAppointmentsCsv(req.user.id);
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=agendamentos.csv");
-    return res.status(200).send(csv);
+    const buffer = await this.reportsService.exportAppointmentsExcel(req.user.id);
+    
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", "attachment; filename=agendamentos.xlsx");
+    
+    return res.status(200).send(buffer);
   }
 
   @Get("payments/export")
   async exportPayments(@Request() req, @Res() res: Response) {
-    const csv = await this.reportsService.exportPaymentsCsv(req.user.id);
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=pagamentos.csv");
-    return res.status(200).send(csv);
+    const buffer = await this.reportsService.exportPaymentsExcel(req.user.id);
+    
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", "attachment; filename=financeiro.xlsx");
+    
+    return res.status(200).send(buffer);
   }
 }

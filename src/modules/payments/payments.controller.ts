@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CreatePixPaymentDto } from "./dto/create-pix-payment.dto";
 import { PaymentsService } from "./payments.service";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { FindPaymentsDto } from "./dto/find-payments.dto";
 
 @Controller("payments")
 @UseGuards(JwtAuthGuard)
@@ -15,8 +16,8 @@ export class PaymentsController {
   }
 
   @Get()
-  list(@CurrentUser() user: { id: string }) {
-    return this.paymentsService.listForUser(user.id);
+  list(@CurrentUser() user: { id: string }, @Query() query: FindPaymentsDto) {
+    return this.paymentsService.listForUser(user.id, query);
   }
 
   @Get(":id")

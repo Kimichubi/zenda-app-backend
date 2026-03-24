@@ -1,4 +1,5 @@
 import { PaymentEntity, PaymentStatus } from "./payments.entity";
+import { FindPaymentsDto } from "./dto/find-payments.dto";
 
 export abstract class PaymentsRepository {
   abstract create(input: {
@@ -15,7 +16,10 @@ export abstract class PaymentsRepository {
     pixCode: string;
   }): Promise<PaymentEntity>;
 
-  abstract findManyByUserId(userId: string): Promise<PaymentEntity[]>;
+  abstract findManyByUserId(
+    userId: string,
+    query?: FindPaymentsDto,
+  ): Promise<{ data: PaymentEntity[]; total: number }>;
   abstract findById(id: string): Promise<PaymentEntity | null>;
   abstract findByAppointmentId(appointmentId: string): Promise<PaymentEntity | null>;
   abstract markAsPaid(id: string): Promise<PaymentEntity | null>;

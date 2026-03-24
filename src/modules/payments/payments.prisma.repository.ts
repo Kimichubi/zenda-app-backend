@@ -45,20 +45,51 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
     });
   }
 
-  async findManyByUserId(userId: string): Promise<PaymentEntity[]> {
-    const payments = await this.prisma.payment.findMany({
-      where: { appointment: { userId } },
-      include: {
-        appointment: {
-          include: {
-            client: true,
-            service: true,
-          }
-        }
-      }
-    });
+  async findManyByUserId(
+    userId: string,
+    query: FindPaymentsDto = {},
+  ): Promise<{ data: PaymentEntity[]; total: number }> {
+    const { search, status, startDate, endDate, minAmount, maxAmount, page = 1, limit = 10 } = query;
+    const skip = (page - 1) * limit;
 
-    return payments.map((p) => ({
+    const where: Prisma.PaymentWhereInput = {
+      appointment: { userId },
+      AND: [
+        search
+          ? {
+            OR: [
+              { appointment: { client: { name: { contains: search, mode: "insensitive" } } } },
+              { appointment: { service: { name: { contains: search, mode: "insensitive" } } } },
+            ],
+          }
+          : {},
+        status ? { status: status as any } : {},
+        startDate ? { createdAt: { gte: new Date(startDate) } } : {},
+        endDate ? { createdAt: { lte: new Date(endDate) } } : {},
+        minAmount ? { amount: { gte: minAmount } } : {},
+        maxAmount ? { amount: { lte: maxAmount } } : {},
+      ],
+    };
+
+    const [total, payments] = await this.prisma.$transaction([
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          appointment: {
+            include: {
+              client: true,
+              service: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const data = payments.map((p) => ({
       id: p.id,
       appointmentId: p.appointmentId,
       clientName: p.appointment.client.name,
@@ -70,6 +101,8 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
       paidAt: p.paidAt ?? null,
       createdAt: p.createdAt,
     }));
+
+    return { data, total };
   }
 
   async findById(id: string): Promise<PaymentEntity | null> {
