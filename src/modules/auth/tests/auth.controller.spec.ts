@@ -58,7 +58,7 @@ describe("AuthController", () => {
 
   describe("validate", () => {
     it("should return valid true and userId", () => {
-      const req = { user: { sub: "user-id" } } as unknown as Request & { user: { sub: string } };
+      const req = { user: { id: "user-id" } } as unknown as Request & { user: { id: string } };
       const result = controller.validate(req);
       expect(result).toEqual({ valid: true, userId: "user-id" });
     });
@@ -66,7 +66,7 @@ describe("AuthController", () => {
 
   describe("refresh", () => {
     it("should call authService.refreshToken", async () => {
-      const req = { user: { sub: "user-id", email: "test@test.com" } } as unknown as Request & { user: { sub: string; email: string } };
+      const req = { user: { id: "user-id", email: "test@test.com" } } as unknown as Request & { user: { id: string; email: string } };
       const expectedResult = { user: { id: "user-id", name: "Test", email: "test@test.com", role: "USER", plan: "FREE" }, accessToken: "acc", refreshToken: "ref" };
       authService.refreshToken.mockResolvedValue(expectedResult as any);
 

@@ -21,13 +21,13 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get("validate")
-  validate(@Req() req: Request & { user: { sub: string } }) {
-    return { valid: true, userId: req.user.sub };
+  validate(@Req() req: Request & { user: { id: string } }) {
+    return { valid: true, userId: req.user.id };
   }
 
   @UseGuards(JwtAuthGuard)
   @Post("refresh")
-  refresh(@Req() req: Request & { user: { sub: string; email: string } }) {
-    return this.authService.refreshToken(req.user.sub, req.user.email);
+  refresh(@Req() req: Request & { user: { id: string; email: string } }) {
+    return this.authService.refreshToken(req.user.id, req.user.email);
   }
 }

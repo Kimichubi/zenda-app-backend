@@ -6,13 +6,40 @@ import {
 } from "../../infrastructure/database/in-memory-database.service";
 import { ServiceEntity } from "./services.entity";
 import { ServicesRepository } from "./services.repository";
+import { FindServicesDto } from "./dto/find-services.dto";
 
 @Injectable()
 export class ServicesInMemoryRepository implements ServicesRepository {
   constructor(private readonly db: InMemoryDatabaseService) { }
 
-  async findManyByUserId(userId: string): Promise<ServiceEntity[]> {
-    return this.db.services.filter((s) => s.userId === userId);
+  async findManyByUserId(
+    userId: string,
+    query: FindServicesDto = {},
+  ): Promise<{ data: ServiceEntity[]; total: number }> {
+    const { search, minPrice, maxPrice, page = 1, limit = 10 } = query;
+
+    let filtered = this.db.services.filter((s) => s.userId === userId);
+
+    if (search) {
+      const s = search.toLowerCase();
+      filtered = filtered.filter((item) =>
+        item.name.toLowerCase().includes(s),
+      );
+    }
+
+    if (minPrice !== undefined) {
+      filtered = filtered.filter((item) => item.price >= minPrice);
+    }
+
+    if (maxPrice !== undefined) {
+      filtered = filtered.filter((item) => item.price <= maxPrice);
+    }
+
+    const total = filtered.length;
+    const skip = (page - 1) * limit;
+    const data = filtered.slice(skip, skip + limit);
+
+    return { data, total };
   }
 
   async findById(id: string): Promise<ServiceEntity | null> {

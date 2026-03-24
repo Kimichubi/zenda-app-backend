@@ -15,8 +15,8 @@ export class PaymentsController {
   }
 
   @Get()
-  list(@CurrentUser() user: { sub: string }) {
-    return this.paymentsService.listForUser(user.sub);
+  list(@CurrentUser() user: { id: string }) {
+    return this.paymentsService.listForUser(user.id);
   }
 
   @Get(":id")

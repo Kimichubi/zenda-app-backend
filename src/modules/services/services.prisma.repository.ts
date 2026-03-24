@@ -2,13 +2,47 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { ServiceEntity } from "./services.entity";
 import { ServicesRepository } from "./services.repository";
+import { FindServicesDto } from "./dto/find-services.dto";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class ServicesPrismaRepository implements ServicesRepository {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findManyByUserId(userId: string): Promise<ServiceEntity[]> {
-    return this.prisma.service.findMany({ where: { userId } });
+  async findManyByUserId(
+    userId: string,
+    query: FindServicesDto = {},
+  ): Promise<{ data: ServiceEntity[]; total: number }> {
+    const { search, minPrice, maxPrice, page = 1, limit = 10 } = query;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.ServiceWhereInput = {
+      userId,
+      AND: [
+        search
+          ? {
+              name: { contains: search, mode: "insensitive" },
+            }
+          : {},
+        minPrice ? { price: { gte: minPrice } } : {},
+        maxPrice ? { price: { lte: maxPrice } } : {},
+      ],
+    };
+
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.service.count({ where }),
+      this.prisma.service.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { name: "asc" },
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+    };
   }
 
   async findById(id: string): Promise<ServiceEntity | null> {

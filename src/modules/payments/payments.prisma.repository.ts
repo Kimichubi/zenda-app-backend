@@ -48,11 +48,21 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
   async findManyByUserId(userId: string): Promise<PaymentEntity[]> {
     const payments = await this.prisma.payment.findMany({
       where: { appointment: { userId } },
+      include: {
+        appointment: {
+          include: {
+            client: true,
+            service: true,
+          }
+        }
+      }
     });
 
     return payments.map((p) => ({
       id: p.id,
       appointmentId: p.appointmentId,
+      clientName: p.appointment.client.name,
+      serviceName: p.appointment.service?.name,
       amount: p.amount,
       status: p.status as PaymentStatus,
       pixCode: p.pixCode ?? null,

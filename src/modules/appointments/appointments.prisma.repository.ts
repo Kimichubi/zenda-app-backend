@@ -133,6 +133,39 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     }) as any;
   }
 
+  async update(
+    id: string,
+    userId: string,
+    input: {
+      status?: AppointmentStatus;
+      serviceId?: string;
+      date?: string | Date;
+      startTime?: string;
+      endTime?: string;
+      price?: number;
+    },
+  ): Promise<AppointmentEntity | null> {
+    const existing = await this.prisma.appointment.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) return null;
+
+    const { serviceId, date, ...rest } = input;
+
+    return (await this.prisma.appointment.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(date ? { date: new Date(date) } : {}),
+        ...(serviceId ? { service: { connect: { id: serviceId } } } : {}),
+      },
+      include: {
+        client: true,
+        service: true,
+      },
+    })) as any;
+  }
+
   async updateStatus(
     id: string,
     userId: string,

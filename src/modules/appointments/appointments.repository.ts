@@ -24,6 +24,18 @@ export abstract class AppointmentsRepository {
       price?: number;
     },
   ): Promise<AppointmentEntity>;
+  abstract update(
+    id: string,
+    userId: string,
+    input: {
+      status?: AppointmentStatus;
+      serviceId?: string;
+      date?: string | Date;
+      startTime?: string;
+      endTime?: string;
+      price?: number;
+    },
+  ): Promise<AppointmentEntity | null>;
   abstract updateStatus(
     id: string,
     userId: string,

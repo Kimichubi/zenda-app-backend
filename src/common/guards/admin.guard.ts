@@ -9,11 +9,11 @@ export class AdminGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.sub) {
+    if (!user || !user.id) {
       return false;
     }
 
-    const userEntity = await this.usersRepository.findById(user.sub);
+    const userEntity = await this.usersRepository.findById(user.id);
     
     if (!userEntity || userEntity.role !== "ADMIN") {
       throw new ForbiddenException("Acesso restrito ao administrador");

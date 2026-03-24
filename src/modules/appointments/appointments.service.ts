@@ -85,7 +85,33 @@ export class AppointmentsService {
   }
 
   async update(userId: string, id: string, dto: UpdateAppointmentDto) {
-    const appointment = await this.appointmentsRepository.updateStatus(id, userId, dto.status || "SCHEDULED");
+    let endTime: string | undefined;
+    let price: number | undefined;
+
+    if (dto.serviceId || dto.startTime) {
+      const current = await this.appointmentsRepository.findById(id);
+      if (current) {
+        const serviceId = dto.serviceId || current.serviceId;
+        const startTime = dto.startTime || current.startTime;
+        
+        if (serviceId && startTime) {
+          const service = await this.servicesRepository.findById(serviceId);
+          if (service) {
+            const [h, m] = startTime.split(":").map(Number);
+            const endMinutes = h * 60 + m + service.duration;
+            endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+            price = dto.price ?? service.price;
+          }
+        }
+      }
+    }
+
+    const appointment = await this.appointmentsRepository.update(id, userId, {
+      ...dto,
+      endTime,
+      price,
+    });
+
     if (appointment && dto.status) {
       if (dto.status === "CANCELLED") {
         await this.syncPaymentStatus(id, "CANCELLED", "Agendamento cancelado");

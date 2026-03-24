@@ -35,7 +35,7 @@ describe('PaymentsController', () => {
 
   it('should call list', async () => {
     mockService.listForUser.mockResolvedValue([]);
-    const result = await controller.list({ sub: 'user1' });
+    const result = await controller.list({ id: 'user1' });
     expect(service.listForUser).toHaveBeenCalledWith('user1');
     expect(result).toEqual([]);
   });

@@ -23,28 +23,28 @@ export class ClientsController {
 
   @Get()
   findAll(
-    @CurrentUser() user: { sub: string },
+    @CurrentUser() user: { id: string },
     @Query() dto: FindClientsDto,
   ) {
-    return this.clientsService.findAll(user.sub, dto);
+    return this.clientsService.findAll(user.id, dto);
   }
 
   @Post()
-  create(@CurrentUser() user: { sub: string }, @Body() dto: CreateClientDto) {
-    return this.clientsService.create(user.sub, dto);
+  create(@CurrentUser() user: { id: string }, @Body() dto: CreateClientDto) {
+    return this.clientsService.create(user.id, dto);
   }
 
   @Patch(":id")
   update(
-    @CurrentUser() user: { sub: string },
+    @CurrentUser() user: { id: string },
     @Param("id") id: string,
     @Body() dto: UpdateClientDto,
   ) {
-    return this.clientsService.update(user.sub, id, dto);
+    return this.clientsService.update(user.id, id, dto);
   }
 
   @Delete(":id")
-  remove(@CurrentUser() user: { sub: string }, @Param("id") id: string) {
-    return this.clientsService.remove(user.sub, id);
+  remove(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    return this.clientsService.remove(user.id, id);
   }
 }

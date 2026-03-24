@@ -6,6 +6,8 @@ export type PaymentStatus = PaymentStatusPrisma;
 export interface PaymentEntity {
   id: string;
   appointmentId: string;
+  clientName?: string;
+  serviceName?: string;
   amount: number;
   status: PaymentStatus;
   pixCode: string | null;
