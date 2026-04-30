@@ -35,11 +35,25 @@ export class CreateProductDto {
   @Min(0)
   price: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPrice?: number;
+
   @IsNumber()
   @Min(0)
   stock: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  minStock?: number;
+
+  @IsOptional()
   @IsString()
   sku?: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Optional } from "@nestjs/common";
 import { makeId } from "../../infrastructure/database/id.factory";
 import { PaymentQueueService } from "../../infrastructure/queues/payment.queue.service";
 import { CreatePixPaymentDto } from "./dto/create-pix-payment.dto";
@@ -31,7 +31,7 @@ export class PaymentsService {
     const finalAmount = amount as number;
 
     if (finalAmount <= 0) {
-      throw new Error("Payment amount must be greater than zero");
+      throw new BadRequestException("Payment amount must be greater than zero");
     }
 
     const user: any = appointment.user;

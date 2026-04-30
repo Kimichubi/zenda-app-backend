@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards, Request, Delete } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { StaffService } from './staff.service';
 import { PosService } from './pos.service';
@@ -6,6 +6,8 @@ import { CommissionService } from './commission.service';
 import { LoyaltyService } from './loyalty.service';
 import { ProductsService } from './products.service';
 import { BusinessService } from './business.service';
+import { CategoriesService } from './categories.service';
+import { InventoryService } from './inventory.service';
 import { CreateStaffDto, UpdateCommissionDto } from './dto/staff.dto';
 import { CheckoutDto, CreateProductDto } from './dto/pos.dto';
 import { MarkCommissionsPaidDto, RedeemPointsDto, UpdateLoyaltyConfigDto } from './dto/enterprise.dto';
@@ -20,6 +22,8 @@ export class EnterpriseController {
     private readonly loyaltyService: LoyaltyService,
     private readonly productsService: ProductsService,
     private readonly businessService: BusinessService,
+    private readonly categoriesService: CategoriesService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   // --- Business & Loyalty Config ---
@@ -49,6 +53,32 @@ export class EnterpriseController {
     return this.staffService.updateCommission(id, dto.percentage);
   }
 
+  @Delete('staff/:id')
+  async removeStaff(@Param('id') id: string, @Request() req) {
+    return this.staffService.removeStaff(id, req.user.businessId);
+  }
+
+  // --- Categories ---
+  @Post('categories')
+  async createCategory(@Request() req, @Body() data: { name: string }) {
+    return this.categoriesService.create(req.user.businessId, data);
+  }
+
+  @Get('categories')
+  async listCategories(@Request() req) {
+    return this.categoriesService.findAll(req.user.businessId);
+  }
+
+  @Patch('categories/:id')
+  async updateCategory(@Param('id') id: string, @Request() req, @Body() data: { name: string }) {
+    return this.categoriesService.update(id, req.user.businessId, data);
+  }
+
+  @Delete('categories/:id')
+  async deleteCategory(@Param('id') id: string, @Request() req) {
+    return this.categoriesService.delete(id, req.user.businessId);
+  }
+
   // --- Inventory & Products ---
   @Post('products')
   async createProduct(@Request() req, @Body() dto: CreateProductDto) {
@@ -70,6 +100,22 @@ export class EnterpriseController {
     return this.productsService.delete(id, req.user.businessId);
   }
 
+  // --- Inventory ---
+  @Get('inventory/movements')
+  async getMovements(@Request() req, @Query('productId') productId?: string) {
+    return this.inventoryService.getMovements(req.user.businessId, productId);
+  }
+
+  @Get('inventory/low-stock')
+  async getLowStock(@Request() req) {
+    return this.inventoryService.getLowStock(req.user.businessId);
+  }
+
+  @Post('inventory/restock')
+  async restock(@Request() req, @Body() data: { productId: string; quantity: number; reason: string }) {
+    return this.inventoryService.restock(data.productId, req.user.businessId, data.quantity, data.reason || 'RESTOCK');
+  }
+
   // --- POS Routes ---
   @Post('checkout')
   async checkout(@Request() req, @Body() dto: CheckoutDto) {
@@ -80,8 +126,10 @@ export class EnterpriseController {
 
   // --- Commission Routes ---
   @Get('commissions')
-  async getCommissions(@Request() req) {
-    return this.commissionService.getReport(req.user.id, new Date(0), new Date());
+  async getCommissions(@Request() req, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    const start = startDate ? new Date(startDate) : new Date(0);
+    const end = endDate ? new Date(endDate) : new Date();
+    return this.commissionService.getReport(req.user.id, start, end);
   }
 
   @Post('commissions/pay')

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { AppointmentEntity } from "./appointments.entity";
 import { AppointmentsRepository } from "./appointments.repository";
@@ -16,6 +16,26 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
         client: true,
         service: true,
       }
+    }) as any;
+  }
+
+  async findManyByUserIdAndDate(userId: string, date: Date): Promise<AppointmentEntity[]> {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return this.prisma.appointment.findMany({
+      where: { userId, date: { gte: start, lt: end } },
+      include: { client: true, service: true },
+      orderBy: { date: "asc" },
+    }) as any;
+  }
+
+  async findRangeByUserId(userId: string, start: Date, end: Date): Promise<AppointmentEntity[]> {
+    return this.prisma.appointment.findMany({
+      where: { userId, date: { gte: start, lt: end } },
+      include: { client: true, service: true },
+      orderBy: { date: "asc" },
     }) as any;
   }
 
@@ -115,7 +135,7 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
       price?: number;
     },
   ): Promise<AppointmentEntity> {
-    if (!userId) throw new Error("userId is required to create an appointment");
+    if (!userId) throw new BadRequestException("userId is required to create an appointment");
     return this.prisma.appointment.create({
       data: {
         date: input.date,

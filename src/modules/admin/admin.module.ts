@@ -6,6 +6,8 @@ import { CommissionService } from './commission.service';
 import { LoyaltyService } from './loyalty.service';
 import { ProductsService } from './products.service';
 import { BusinessService } from './business.service';
+import { CategoriesService } from './categories.service';
+import { InventoryService } from './inventory.service';
 import { EnterpriseController } from './enterprise.controller';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
 import { UsersModule } from '../users/users.module';
@@ -25,7 +27,9 @@ import { AppointmentsModule } from '../appointments/appointments.module';
     LoyaltyService,
     ProductsService,
     BusinessService,
+    CategoriesService,
+    InventoryService,
   ],
-  exports: [StaffService, PosService, CommissionService, LoyaltyService, ProductsService, BusinessService],
+  exports: [StaffService, PosService, CommissionService, LoyaltyService, ProductsService, BusinessService, CategoriesService, InventoryService],
 })
 export class AdminModule {}

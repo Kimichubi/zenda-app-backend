@@ -18,7 +18,6 @@ export class ProductsService {
   async findAll(businessId: string) {
     return this.prisma.product.findMany({
       where: { businessId },
-      include: { categories: true },
     });
   }
 

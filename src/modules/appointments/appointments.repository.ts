@@ -3,6 +3,8 @@ import { AppointmentStatus } from "../../infrastructure/database/in-memory-datab
 
 export abstract class AppointmentsRepository {
   abstract findManyByUserId(userId: string): Promise<AppointmentEntity[]>;
+  abstract findManyByUserIdAndDate(userId: string, date: Date): Promise<AppointmentEntity[]>;
+  abstract findRangeByUserId(userId: string, start: Date, end: Date): Promise<AppointmentEntity[]>;
   abstract findConflict(
     userId: string,
     date: Date,

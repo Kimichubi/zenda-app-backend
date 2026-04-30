@@ -21,22 +21,28 @@ export class AppointmentsService {
   ) { }
 
   async create(userId: string, dto: CreateAppointmentDto) {
-    const service = await this.servicesRepository.findById(dto.serviceId);
-    if (!service) throw new NotFoundException("Service not found");
+    let endTime: string | undefined;
+    let price: number | undefined;
 
-    const [h, m] = dto.startTime.split(":").map(Number);
-    const endMinutes = h * 60 + m + service.duration;
-    const endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+    if (dto.serviceId) {
+      const service = await this.servicesRepository.findById(dto.serviceId);
+      if (!service) throw new NotFoundException("Service not found");
+      price = service.price;
 
-    const appointment = await this.appointmentsRepository.create({
-      userId,
+      if (dto.startTime) {
+        const [h, m] = dto.startTime.split(":").map(Number);
+        const endMinutes = h * 60 + m + service.duration;
+        endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+      }
+    }
+
+    const appointment = await this.appointmentsRepository.create(userId, {
       clientId: dto.clientId,
       serviceId: dto.serviceId,
       date: new Date(dto.date),
       startTime: dto.startTime,
       endTime,
-      price: service.price,
-      status: "SCHEDULED",
+      price: dto.price ?? price,
     });
 
     await this.sendNotification(userId, appointment.id);
@@ -96,6 +102,12 @@ export class AppointmentsService {
     const end = new Date(start);
     end.setDate(end.getDate() + 7);
     return this.appointmentsRepository.findRangeByUserId(userId, start, end);
+  }
+
+  async resendNotification(userId: string, appointmentId: string): Promise<void> {
+    const appointment = await this.appointmentsRepository.findById(appointmentId);
+    if (!appointment) throw new NotFoundException("Appointment not found");
+    await this.sendNotification(userId, appointmentId);
   }
 
   private async syncPaymentStatus(appointmentId: string, status: any, reason?: string) {

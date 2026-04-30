@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 
 @Injectable()
@@ -36,7 +36,7 @@ export class LoyaltyService {
     const client = await this.prisma.client.findUnique({ where: { id: clientId } });
     
     if (!client || client.pointsBalance < points) {
-      throw new Error('Insufficient points');
+      throw new BadRequestException('Insufficient points');
     }
 
     return this.prisma.client.update({

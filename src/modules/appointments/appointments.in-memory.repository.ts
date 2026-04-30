@@ -16,6 +16,22 @@ export class AppointmentsInMemoryRepository implements AppointmentsRepository {
     return this.db.appointments.filter((a) => a.userId === userId);
   }
 
+  async findManyByUserIdAndDate(userId: string, date: Date): Promise<AppointmentEntity[]> {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return this.db.appointments.filter(
+      (a) => a.userId === userId && a.date >= start && a.date < end,
+    );
+  }
+
+  async findRangeByUserId(userId: string, start: Date, end: Date): Promise<AppointmentEntity[]> {
+    return this.db.appointments.filter(
+      (a) => a.userId === userId && a.date >= start && a.date < end,
+    );
+  }
+
   async findByWeek(userId: string, startDate: Date): Promise<AppointmentEntity[]> {
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);

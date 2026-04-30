@@ -1,6 +1,7 @@
 import {
   CallHandler,
   ExecutionContext,
+  HttpException,
   Injectable,
   Logger,
   NestInterceptor,
@@ -9,17 +10,31 @@ import { Observable, tap } from "rxjs";
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(LoggingInterceptor.name);
+  private readonly logger = new Logger("HTTP");
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const req = context
-      .switchToHttp()
-      .getRequest<Request & { method: string; url: string }>();
+    const request = context.switchToHttp().getRequest();
+    const method = request?.method ?? "UNKNOWN";
+    const url = request?.url ?? "UNKNOWN";
     const startedAt = Date.now();
 
     return next.handle().pipe(
-      tap(() => {
-        this.logger.log(`${req.method} ${req.url} ${Date.now() - startedAt}ms`);
+      tap({
+        next: () => {
+          const response = context.switchToHttp().getResponse();
+          const duration = Date.now() - startedAt;
+          this.logger.log(
+            `${method} ${url} ${response?.statusCode ?? 200} ${duration}ms`,
+          );
+        },
+        error: (error: unknown) => {
+          const duration = Date.now() - startedAt;
+          const status =
+            error instanceof HttpException
+              ? error.getStatus()
+              : 500;
+          this.logger.warn(`${method} ${url} ${status} ${duration}ms`);
+        },
       }),
     );
   }

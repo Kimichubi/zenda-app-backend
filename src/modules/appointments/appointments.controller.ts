@@ -13,12 +13,12 @@ export class AppointmentsController {
 
   @Get()
   async findAll(@Request() req) {
-    return this.appointmentsService.findAll(req.user.id);
+    return this.appointmentsService.listForUser(req.user.id);
   }
 
   @Get("week")
   async getByWeek(@Request() req, @Query("start") start: string) {
-    return this.appointmentsService.getByWeek(req.user.id, start);
+    return this.appointmentsService.listWeekly(req.user.id, start);
   }
 
   @Post(":id/resend-notification")
