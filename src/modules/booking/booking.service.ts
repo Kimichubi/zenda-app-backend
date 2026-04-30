@@ -8,6 +8,7 @@ import { ServicesRepository } from "../services/services.repository";
 import { AppointmentsRepository } from "../appointments/appointments.repository";
 import { ClientsRepository } from "../clients/clients.repository";
 import { SchedulesRepository } from "../schedules/schedules.repository";
+import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 
 @Injectable()
@@ -18,6 +19,7 @@ export class BookingService {
     private readonly appointmentsRepository: AppointmentsRepository,
     private readonly clientsRepository: ClientsRepository,
     private readonly schedulesRepository: SchedulesRepository,
+    private readonly prisma: PrismaService,
   ) { }
 
   async getServices(slug: string) {
@@ -42,17 +44,13 @@ export class BookingService {
     const date = new Date(dateStr);
     const weekday = date.getDay();
 
-    const schedules = await this.schedulesRepository.list(user.id);
-    const schedule = schedules.find((s) => s.weekday === weekday);
+    const schedule = await this.prisma.schedule.findUnique({
+      where: { userId_weekday: { userId: user.id, weekday } },
+    });
 
     if (!schedule) {
       return [];
     }
-
-    const [startH, startM] = schedule.startTime.split(":").map(Number);
-    const [endH, endM] = schedule.endTime.split(":").map(Number);
-    const startMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
 
     const dayStart = new Date(date);
     dayStart.setHours(0, 0, 0, 0);
@@ -65,17 +63,65 @@ export class BookingService {
       (a) =>
         a.date >= dayStart &&
         a.date < dayEnd &&
-        a.status !== "CANCELLED",
+        a.status !== "CANCELLED" &&
+        a.status !== "NO_SHOW",
     );
 
-    const bookedTimes = new Set(
-      existingAppointments.map((a) => a.startTime).filter(Boolean),
-    );
+    const blockedSlots = await this.prisma.blockedSlot.findMany({
+      where: {
+        userId: user.id,
+        date: { gte: dayStart, lt: dayEnd },
+      },
+    });
+
+    const [startH, startM] = schedule.startTime.split(":").map(Number);
+    const [endH, endM] = schedule.endTime.split(":").map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    const slotDuration = schedule.slotDuration || 30;
+
+    const breakStartMinutes = schedule.breakStart
+      ? schedule.breakStart.split(":").map(Number).reduce((h, m) => h * 60 + m, 0)
+      : null;
+    const breakEndMinutes = schedule.breakEnd
+      ? schedule.breakEnd.split(":").map(Number).reduce((h, m) => h * 60 + m, 0)
+      : null;
+
+    const bookedRanges = existingAppointments.map((a) => {
+      const [h, m] = (a.startTime ?? "00:00").split(":").map(Number);
+      const start = h * 60 + m;
+      const [eh, em] = (a.endTime ?? "00:00").split(":").map(Number);
+      const end = eh * 60 + em;
+      return { start, end };
+    });
+
+    const blockedRanges = blockedSlots.map((b) => {
+      const [h, m] = b.startTime.split(":").map(Number);
+      const start = h * 60 + m;
+      const [eh, em] = b.endTime.split(":").map(Number);
+      const end = eh * 60 + em;
+      return { start, end };
+    });
+
+    const now = new Date();
+    const isToday = dayStart.toDateString() === new Date(now.getFullYear(), now.getMonth(), now.getDate()).toDateString();
+    const currentMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
 
     const slots: { time: string; available: boolean }[] = [];
-    for (let m = startMinutes; m + service.duration <= endMinutes; m += 30) {
+    for (let m = startMinutes; m + service.duration <= endMinutes; m += slotDuration) {
+      const slotEnd = m + service.duration;
       const time = `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-      slots.push({ time, available: !bookedTimes.has(time) });
+
+      const isPast = isToday && m <= currentMinutes;
+      const isBooked = bookedRanges.some((b) => m < b.end && slotEnd > b.start);
+      const isBlocked = blockedRanges.some((b) => m < b.end && slotEnd > b.start);
+      const isBreak = breakStartMinutes !== null && breakEndMinutes !== null &&
+        m < breakEndMinutes && slotEnd > breakStartMinutes;
+
+      slots.push({
+        time,
+        available: !isPast && !isBooked && !isBlocked && !isBreak,
+      });
     }
 
     return slots;

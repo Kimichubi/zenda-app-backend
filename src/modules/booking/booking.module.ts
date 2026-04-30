@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { BookingController } from "./booking.controller";
 import { BookingService } from "./booking.service";
 import { UsersModule } from "../users/users.module";
@@ -11,11 +11,12 @@ import { SchedulesModule } from "../schedules/schedules.module";
   imports: [
     UsersModule,
     ServicesModule,
-    AppointmentsModule,
+    forwardRef(() => AppointmentsModule),
     ClientsModule,
     SchedulesModule,
   ],
   controllers: [BookingController],
   providers: [BookingService],
+  exports: [BookingService],
 })
 export class BookingModule { }

@@ -1,5 +1,6 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { WhatsappBotService } from '../../modules/whatsapp/whatsapp-bot.service';
 
 @Controller('webhooks/whatsapp')
 export class WebhookController {
@@ -7,6 +8,7 @@ export class WebhookController {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly botService: WhatsappBotService,
   ) {}
 
   @Post()
@@ -18,14 +20,26 @@ export class WebhookController {
 
       if (event === 'message.received') {
         const fromPhone = payload.from;
-        const text = payload.body?.trim().toUpperCase();
+        const text = payload.body?.trim() ?? '';
+        const isFromMe = payload.fromMe ?? false;
 
-        if (text === 'SIM' || text === 'NAO' || text === 'NÃO') {
-          await this.processClientResponse(fromPhone, text);
+        // Ignorar mensagens enviadas pelo próprio bot
+        if (isFromMe) {
+          return { status: 'ignored' };
+        }
+
+        const upperText = text.toUpperCase();
+
+        // Manter compatibilidade com confirmação SIM/NAO do cron
+        if (upperText === 'SIM' || upperText === 'NAO' || upperText === 'NÃO') {
+          await this.processClientResponse(fromPhone, upperText);
+        } else {
+          // Rotear para o bot de IA
+          await this.botService.processIncomingMessage(fromPhone, text);
         }
       }
     } catch (error) {
-      this.logger.error('Erro ao processar webhook do WAHA', error.stack);
+      this.logger.error('Erro ao processar webhook do WAHA', error instanceof Error ? error.stack : String(error));
     }
     return { status: 'success' };
   }

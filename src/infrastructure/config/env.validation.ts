@@ -23,6 +23,11 @@ export const envSchema = z.object({
   WHATSAPP_BASE_URL: z.string().url().default("http://localhost:3001"),
   WHATSAPP_API_KEY: z.string().optional(),
   WHATSAPP_SESSION: z.string().default("default"),
+
+  // AI (Qwen3)
+  QWEN_API_KEY: z.string().optional(),
+  QWEN_API_URL: z.string().url().default("https://api.qwen.ai/v1/chat/completions"),
+  QWEN_MODEL: z.string().default("qwen3-8b"),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

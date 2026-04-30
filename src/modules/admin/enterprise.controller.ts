@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Re
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { StaffService } from './staff.service';
 import { PosService } from './pos.service';
+import { PosCheckoutService } from './pos-checkout.service';
 import { CommissionService } from './commission.service';
 import { LoyaltyService } from './loyalty.service';
 import { ProductsService } from './products.service';
@@ -18,6 +19,7 @@ export class EnterpriseController {
   constructor(
     private readonly staffService: StaffService,
     private readonly posService: PosService,
+    private readonly posCheckoutService: PosCheckoutService,
     private readonly commissionService: CommissionService,
     private readonly loyaltyService: LoyaltyService,
     private readonly productsService: ProductsService,
@@ -122,6 +124,34 @@ export class EnterpriseController {
     const sale = await this.posService.checkout(req.user.businessId, req.user.id, dto);
     await this.loyaltyService.processSalePoints(sale.id);
     return sale;
+  }
+
+  // --- Appointment Checkout ---
+  @Post('checkout/appointment/:id')
+  async checkoutAppointment(@Param('id') id: string, @Body() body: {
+    tipAmount?: number;
+    tipPercentage?: number;
+    paymentMethod: string;
+    useInternalCredit?: boolean;
+    splitEnabled?: boolean;
+  }) {
+    return this.posCheckoutService.checkoutAppointment(id, body);
+  }
+
+  @Get('checkout/appointment/:id/tips')
+  async getTipSuggestions(@Param('id') id: string) {
+    return this.posCheckoutService.getTipSuggestions(id);
+  }
+
+  // --- Client Credit ---
+  @Post('clients/:id/credit')
+  async addClientCredit(@Param('id') id: string, @Body() body: { amount: number; description: string }) {
+    return this.posCheckoutService.addClientCredit(id, body.amount, body.description);
+  }
+
+  @Get('clients/:id/credit')
+  async getClientCredit(@Param('id') id: string) {
+    return this.posCheckoutService.getClientCredit(id);
   }
 
   // --- Commission Routes ---

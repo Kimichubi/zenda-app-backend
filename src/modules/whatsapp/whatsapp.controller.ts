@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, UseGuards, Request, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Delete, UseGuards, Request, Logger, Param, Query } from '@nestjs/common';
 import { WhatsappService } from '../../infrastructure/notifications/whatsapp.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -47,5 +47,96 @@ export class WhatsappController {
       });
     }
     return result;
+  }
+
+  // --- Chat Bot Monitoring ---
+
+  @Get('chat/sessions')
+  async listSessions(@Request() req, @Query('limit') limit?: string) {
+    const business = await this.prisma.business.findFirst({
+      where: { ownerId: req.user.id },
+    });
+
+    if (!business) {
+      return { sessions: [] };
+    }
+
+    const sessions = await this.prisma.chatSession.findMany({
+      where: { businessId: business.id },
+      orderBy: { lastMessageAt: 'desc' },
+      take: limit ? parseInt(limit, 10) : 50,
+    });
+
+    return { sessions };
+  }
+
+  @Get('chat/sessions/:id/logs')
+  async getSessionLogs(@Param('id') sessionId: string) {
+    const logs = await this.prisma.chatLog.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'asc' },
+      take: 100,
+    });
+
+    return { logs };
+  }
+
+  @Post('chat/sessions/:id/reset')
+  async resetSession(@Param('id') sessionId: string) {
+    await this.prisma.chatSession.update({
+      where: { id: sessionId },
+      data: {
+        context: [],
+        state: 'IDLE',
+      },
+    });
+
+    return { success: true };
+  }
+
+  @Get('chat/stats')
+  async getChatStats(@Request() req) {
+    const business = await this.prisma.business.findFirst({
+      where: { ownerId: req.user.id },
+    });
+
+    if (!business) {
+      return {
+        totalSessions: 0,
+        totalMessages: 0,
+        intents: {},
+      };
+    }
+
+    const [
+      totalSessions,
+      totalMessages,
+      intentCounts,
+    ] = await Promise.all([
+      this.prisma.chatSession.count({ where: { businessId: business.id } }),
+      this.prisma.chatLog.count({
+        where: {
+          session: { businessId: business.id },
+        },
+      }),
+      this.prisma.chatLog.groupBy({
+        by: ['intent'],
+        where: {
+          session: { businessId: business.id },
+        },
+        _count: { intent: true },
+      }),
+    ]);
+
+    const intents: Record<string, number> = {};
+    for (const row of intentCounts) {
+      intents[row.intent] = row._count.intent;
+    }
+
+    return {
+      totalSessions,
+      totalMessages,
+      intents,
+    };
   }
 }
