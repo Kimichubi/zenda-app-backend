@@ -4,6 +4,14 @@ import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 
+function mapAppointment(apt: any) {
+  return {
+    ...apt,
+    clientName: apt.client?.name || "Cliente",
+    serviceName: apt.service?.name || "Serviço",
+  };
+}
+
 @Controller("appointments")
 @UseGuards(JwtAuthGuard)
 export class AppointmentsController {
@@ -13,12 +21,14 @@ export class AppointmentsController {
 
   @Get()
   async findAll(@Request() req) {
-    return this.appointmentsService.listForUser(req.user.id);
+    const appointments = await this.appointmentsService.listForUser(req.user.id);
+    return appointments.map(mapAppointment);
   }
 
   @Get("week")
   async getByWeek(@Request() req, @Query("start") start: string) {
-    return this.appointmentsService.listWeekly(req.user.id, start);
+    const appointments = await this.appointmentsService.listWeekly(req.user.id, start);
+    return appointments.map(mapAppointment);
   }
 
   @Post(":id/resend-notification")
@@ -29,7 +39,8 @@ export class AppointmentsController {
 
   @Post()
   async create(@Request() req, @Body() dto: CreateAppointmentDto) {
-    return this.appointmentsService.create(req.user.id, dto);
+    const appointment = await this.appointmentsService.create(req.user.id, dto);
+    return mapAppointment(appointment);
   }
 
   @Put(":id")
@@ -38,6 +49,7 @@ export class AppointmentsController {
     @Param("id") id: string,
     @Body() dto: UpdateAppointmentDto,
   ) {
-    return this.appointmentsService.update(req.user.id, id, dto);
+    const appointment = await this.appointmentsService.update(req.user.id, id, dto);
+    return appointment ? mapAppointment(appointment) : null;
   }
 }

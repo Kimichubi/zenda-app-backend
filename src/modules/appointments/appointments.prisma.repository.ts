@@ -159,6 +159,7 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     userId: string,
     input: {
       status?: AppointmentStatus;
+      clientId?: string;
       serviceId?: string;
       date?: string | Date;
       startTime?: string;
@@ -171,14 +172,18 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     });
     if (!existing) return null;
 
-    const { serviceId, date, ...rest } = input;
+    const { status, clientId, serviceId, date, startTime, endTime, price } = input;
 
     return (await this.prisma.appointment.update({
       where: { id },
       data: {
-        ...rest,
-        ...(date ? { date: new Date(date) } : {}),
+        ...(status !== undefined ? { status } : {}),
+        ...(clientId ? { client: { connect: { id: clientId } } } : {}),
         ...(serviceId ? { service: { connect: { id: serviceId } } } : {}),
+        ...(date ? { date: new Date(date) } : {}),
+        ...(startTime !== undefined ? { startTime } : {}),
+        ...(endTime !== undefined ? { endTime } : {}),
+        ...(price !== undefined ? { price } : {}),
       },
       include: {
         client: true,

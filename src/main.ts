@@ -14,7 +14,7 @@ async function bootstrap() {
   app.use(helmet());
 
   app.enableCors({
-    origin: configService.get("FRONTEND_URL") || "http://localhost:5173",
+    origin: configService.get("FRONTEND_URL") || "http://localhost:5174",
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     allowedHeaders: "Content-Type,Authorization",
@@ -29,6 +29,6 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new LoggingInterceptor());
-  await app.listen(configService.get("PORT") ?? 3000);
+  await app.listen(configService.get("PORT") ?? 3001);
 }
 bootstrap();

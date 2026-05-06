@@ -120,6 +120,7 @@ export class AppointmentsInMemoryRepository implements AppointmentsRepository {
     userId: string,
     input: {
       status?: AppointmentStatus;
+      clientId?: string;
       serviceId?: string;
       date?: string | Date;
       startTime?: string;
@@ -132,12 +133,13 @@ export class AppointmentsInMemoryRepository implements AppointmentsRepository {
     );
     if (idx < 0) return null;
 
-    const { date, serviceId, ...rest } = input;
+    const { date, serviceId, clientId, ...rest } = input;
 
     this.db.appointments[idx] = {
       ...this.db.appointments[idx],
       ...rest,
       ...(date ? { date: new Date(date) } : {}),
+      ...(clientId !== undefined ? { clientId } : {}),
       ...(serviceId !== undefined ? { serviceId: serviceId ?? null } : {}),
     };
 

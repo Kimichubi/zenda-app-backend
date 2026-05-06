@@ -31,6 +31,7 @@ export abstract class AppointmentsRepository {
     userId: string,
     input: {
       status?: AppointmentStatus;
+      clientId?: string;
       serviceId?: string;
       date?: string | Date;
       startTime?: string;

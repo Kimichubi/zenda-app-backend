@@ -15,6 +15,10 @@ export class UpdateAppointmentDto {
 
   @IsOptional()
   @IsString()
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
   serviceId?: string;
 
   @IsOptional()
@@ -24,6 +28,10 @@ export class UpdateAppointmentDto {
   @IsOptional()
   @IsString()
   startTime?: string;
+
+  @IsOptional()
+  @IsString()
+  endTime?: string;
 
   @IsOptional()
   @IsNumber()

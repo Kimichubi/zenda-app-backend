@@ -1,7 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { WhatsappService } from "../../infrastructure/notifications/whatsapp.service";
 import { QwenService, ChatMessage } from "../../infrastructure/ai/qwen.service";
+import { GeminiService } from "../../infrastructure/ai/gemini.service";
 import { ChatSessionService } from "./chat-session.service";
 import { IntentProcessorService } from "./intent-processor.service";
 
@@ -38,14 +40,20 @@ FORMATO DE RESPOSTA (apenas JSON, sem markdown):
 @Injectable()
 export class WhatsappBotService {
   private readonly logger = new Logger(WhatsappBotService.name);
+  private readonly aiProvider: string;
 
   constructor(
+    private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly whatsappService: WhatsappService,
     private readonly qwenService: QwenService,
+    private readonly geminiService: GeminiService,
     private readonly chatSessionService: ChatSessionService,
     private readonly intentProcessor: IntentProcessorService,
-  ) {}
+  ) {
+    this.aiProvider = this.configService.get<string>("AI_PROVIDER") ?? "qwen";
+    this.logger.log(`AI Provider configurado: ${this.aiProvider}`);
+  }
 
   async processIncomingMessage(phone: string, text: string): Promise<void> {
     const cleanPhone = this.cleanPhone(phone);
@@ -67,27 +75,62 @@ export class WhatsappBotService {
       }
     }
 
-    // 3. Buscar dados do estabelecimento para o prompt
+    // 3. Se ainda não temos businessId (cliente novo), tentar usar o primeiro estabelecimento disponível
+    if (!businessId) {
+      const defaultBusiness = await this.getDefaultBusiness();
+      if (defaultBusiness) {
+        businessId = defaultBusiness.id;
+        await this.chatSessionService.updateState(session.id, session.state, clientId, businessId);
+      }
+    }
+
+    // 4. Buscar dados do estabelecimento para o prompt
     const businessData = businessId ? await this.getBusinessData(businessId) : null;
 
     // 4. Montar mensagens para a IA
     const contextMessages = this.chatSessionService.getContextMessages(session);
     const messages = this.buildMessages(text, contextMessages, businessData);
 
-    // 5. Chamar IA
+    // 5. Chamar IA (Gemini first, fallback to OpenRouter)
     let aiResponse: { content: string; usage?: { promptTokens: number; completionTokens: number } };
     let parsed: { intent: string; response: string; action?: Record<string, unknown>; confidence?: number };
+    let usedProvider = this.aiProvider;
 
     try {
-      aiResponse = await this.qwenService.chat(messages);
-      parsed = this.qwenService.parseResponse(aiResponse.content);
+      if (this.aiProvider === "gemini") {
+        this.logger.debug("[Bot] Usando Gemini AI");
+        aiResponse = await this.geminiService.chat(messages);
+        parsed = this.geminiService.parseResponse(aiResponse.content);
+      } else {
+        this.logger.debug("[Bot] Usando OpenRouter AI");
+        aiResponse = await this.qwenService.chat(messages);
+        parsed = this.qwenService.parseResponse(aiResponse.content);
+      }
     } catch (error) {
-      this.logger.error(`[Bot] Erro na IA, usando fallback`, error instanceof Error ? error.stack : String(error));
-      aiResponse = { content: "", usage: { promptTokens: 0, completionTokens: 0 } };
-      parsed = {
-        intent: "FALLBACK",
-        response: "Desculpe, nosso assistente está com dificuldades técnicas no momento. Pode tentar novamente em alguns instantes?",
-      };
+      this.logger.warn(`[Bot] ${usedProvider} falhou, tentando fallback...`, error instanceof Error ? error.message : String(error));
+
+      // Fallback: if Gemini fails, try OpenRouter
+      if (usedProvider === "gemini") {
+        try {
+          this.logger.debug("[Bot] Fallback para OpenRouter");
+          aiResponse = await this.qwenService.chat(messages);
+          parsed = this.qwenService.parseResponse(aiResponse.content);
+          usedProvider = "openrouter";
+        } catch (fallbackError) {
+          this.logger.error(`[Bot] OpenRouter fallback também falhou`, fallbackError instanceof Error ? fallbackError.message : String(fallbackError));
+          aiResponse = { content: "", usage: { promptTokens: 0, completionTokens: 0 } };
+          parsed = {
+            intent: "FALLBACK",
+            response: "Desculpe, nosso assistente está com dificuldades técnicas no momento. Pode tentar novamente em alguns instantes?",
+          };
+        }
+      } else {
+        aiResponse = { content: "", usage: { promptTokens: 0, completionTokens: 0 } };
+        parsed = {
+          intent: "FALLBACK",
+          response: "Desculpe, nosso assistente está com dificuldades técnicas no momento. Pode tentar novamente em alguns instantes?",
+        };
+      }
     }
 
     // 6. Se confidence baixa ou fallback, apenas responder (não executar ação)
@@ -120,7 +163,7 @@ export class WhatsappBotService {
       parsed.intent,
       confidence,
       {
-        model: "qwen3-8b",
+        model: usedProvider === "gemini" ? "gemini-2.0-flash" : usedProvider === "openrouter" ? "openrouter-free" : "qwen3-8b",
         promptTokens: aiResponse?.usage?.promptTokens ?? 0,
         completionTokens: aiResponse?.usage?.completionTokens ?? 0,
         action: parsed.action ?? null,
@@ -140,6 +183,13 @@ export class WhatsappBotService {
       take: 1,
     });
     return clients[0] ?? null;
+  }
+
+  private async getDefaultBusiness() {
+    const business = await this.prisma.business.findFirst({
+      orderBy: { createdAt: "asc" },
+    });
+    return business;
   }
 
   private async getBusinessData(businessId: string) {

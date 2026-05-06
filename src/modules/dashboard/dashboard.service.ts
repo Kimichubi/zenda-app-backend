@@ -2,6 +2,14 @@ import { Injectable } from "@nestjs/common";
 import { AppointmentsRepository } from "../appointments/appointments.repository";
 import { PaymentsRepository } from "../payments/payments.repository";
 
+function mapAppointment(apt: any) {
+  return {
+    ...apt,
+    clientName: apt.client?.name || "Cliente",
+    serviceName: apt.service?.name || "Serviço",
+  };
+}
+
 @Injectable()
 export class DashboardService {
   constructor(
@@ -14,7 +22,7 @@ export class DashboardService {
       await Promise.all([
         this.appointmentsRepository.findTodayByUserId(userId),
         this.appointmentsRepository.findUpcomingByUserId(userId),
-        this.paymentsRepository.findManyByUserId(userId, { limit: 1000 }), // Pegar bastante para o dashboard
+        this.paymentsRepository.findManyByUserId(userId, { limit: 1000 }),
       ]);
 
     const payments = paymentsResponse.data;
@@ -34,10 +42,10 @@ export class DashboardService {
     );
 
     return {
-      todayAppointments,
-      upcomingAppointments,
+      todayAppointments: todayAppointments.map(mapAppointment),
+      upcomingAppointments: upcomingAppointments.map(mapAppointment),
       todayRevenue,
-      noShowClients,
+      noShowClients: noShowClients.map(mapAppointment),
     };
   }
 }

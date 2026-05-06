@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import axios from "axios";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -28,12 +29,27 @@ export class QwenService {
   private readonly apiUrl: string;
   private readonly apiKey: string | undefined;
   private readonly model: string;
+  private readonly fallbackModels = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "baidu/cobuddy:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "qwen/qwen3-coder:free",
+    "openai/gpt-oss-20b:free",
+  ];
 
   constructor(private readonly configService: ConfigService) {
-    this.apiUrl = this.configService.get<string>("QWEN_API_URL") ?? "https://api.qwen.ai/v1/chat/completions";
-    this.apiKey = this.configService.get<string>("QWEN_API_KEY") ?? undefined;
-    this.model = this.configService.get<string>("QWEN_MODEL") ?? "qwen3-8b";
-    this.logger.log(`AI Service: ${this.apiUrl.includes("openrouter") ? "OpenRouter" : "Qwen Direct"} | Model: ${this.model} | Key: ${this.apiKey ? "configured" : "MISSING"}`);
+    // Support both old QWEN_* and new OPENROUTER_* env vars
+    this.apiUrl = this.configService.get<string>("OPENROUTER_API_URL")
+      ?? this.configService.get<string>("QWEN_API_URL")
+      ?? "https://openrouter.ai/api/v1/chat/completions";
+    this.apiKey = (this.configService.get<string>("OPENROUTER_API_KEY")
+      ?? this.configService.get<string>("QWEN_API_KEY")
+      ?? "").trim();
+    this.model = this.configService.get<string>("OPENROUTER_MODEL")
+      ?? this.configService.get<string>("QWEN_MODEL")
+      ?? "meta-llama/llama-3.3-70b-instruct:free";
+    this.logger.log(`AI Service: OpenRouter | Model: ${this.model} | Key: ${this.apiKey ? "configured (" + this.apiKey.slice(0, 8) + "...)" : "MISSING"}`);
   }
 
   async chat(
@@ -41,7 +57,7 @@ export class QwenService {
     tools?: ToolDefinition[],
   ): Promise<{ content: string; usage?: { promptTokens: number; completionTokens: number } }> {
     if (!this.apiKey) {
-      this.logger.warn("QWEN_API_KEY não configurada. Retornando resposta de fallback.");
+      this.logger.warn("OPENROUTER_API_KEY não configurada. Retornando resposta de fallback.");
       return { content: JSON.stringify({ intent: "FALLBACK", response: "Desculpe, nosso assistente virtual está temporariamente indisponível. Por favor, entre em contato pelo telefone do estabelecimento." }) };
     }
 
@@ -57,36 +73,51 @@ export class QwenService {
         headers["X-Title"] = "Zenda";
       }
 
-      const response = await fetch(this.apiUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: this.model,
-          messages,
-          tools,
-          temperature: 0.5,
-          response_format: { type: "json_object" },
-        }),
-      });
+      const modelsToTry = [this.model, ...this.fallbackModels.filter((m) => m !== this.model)];
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        this.logger.error(`Qwen API error ${response.status}: ${errorText}`);
-        throw new Error(`Qwen API error: ${response.status}`);
+      for (const model of modelsToTry) {
+        try {
+          this.logger.debug(`Enviando requisição para ${this.apiUrl} com model=${model}`);
+
+          const response = await axios.post(
+            this.apiUrl,
+            {
+              model,
+              messages,
+              tools,
+              temperature: 0.5,
+              response_format: { type: "json_object" },
+            },
+            { headers },
+          );
+
+          const data = response.data;
+          const content = data.choices?.[0]?.message?.content ?? "";
+          const usage = data.usage
+            ? {
+                promptTokens: data.usage.prompt_tokens ?? 0,
+                completionTokens: data.usage.completion_tokens ?? 0,
+              }
+            : undefined;
+
+          return { content, usage };
+        } catch (attemptError: any) {
+          const status = attemptError.response?.status;
+          const errorText = attemptError.response?.data ? JSON.stringify(attemptError.response.data) : attemptError.message;
+
+          if (status === 404 || status === 429) {
+            this.logger.warn(`Modelo ${model} não disponível (status ${status}), tentando próximo...`);
+            continue;
+          }
+
+          this.logger.error(`OpenRouter API error ${status} com ${model}: ${errorText}`);
+          throw new Error(`OpenRouter API error: ${status}`);
+        }
       }
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content ?? "";
-      const usage = data.usage
-        ? {
-            promptTokens: data.usage.prompt_tokens ?? 0,
-            completionTokens: data.usage.completion_tokens ?? 0,
-          }
-        : undefined;
-
-      return { content, usage };
-    } catch (error) {
-      this.logger.error(`Erro ao chamar Qwen API`, error instanceof Error ? error.stack : String(error));
+      throw new Error("Nenhum modelo free disponível no OpenRouter");
+    } catch (error: any) {
+      this.logger.error(`Erro ao chamar OpenRouter API`, error instanceof Error ? error.stack : String(error));
       throw error;
     }
   }

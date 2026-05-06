@@ -15,14 +15,14 @@ services:
     image: redis:7-alpine
     restart: always
     ports:
-      - "6379:6379"
+      - "6380:6379"
 
   waha:
     image: devlikeapro/waha
     container_name: zenda-waha
     restart: always
     ports:
-      - "3001:3000"
+      - "3002:3000"
     environment:
       - WAHA_PRINT_QR=true
 
