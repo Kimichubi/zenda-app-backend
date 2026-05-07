@@ -1,6 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../database/prisma.service";
 import axios from "axios";
+
+const DEFAULT_CONFIRMATION_TEMPLATE = `Olá *{clientName}*! 🌟\n\nConfirmamos seu agendamento de *{serviceName}*.\n\n📅 *Data:* {date}\n⏰ *Hora:* {time}\n🏢 *Local:* {businessName}\n\nEstamos te esperando!`;
 
 @Injectable()
 export class WhatsappService {
@@ -8,7 +11,10 @@ export class WhatsappService {
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     this.baseUrl = this.configService.get<string>("WHATSAPP_BASE_URL") ?? "http://localhost:3001";
     this.apiKey = this.configService.get<string>("WAHA_API_KEY");
     this.logger.log(`WhatsApp Service configurado para: ${this.baseUrl} (API Key: ${this.apiKey ? 'SIM' : 'NÃO'})`);
@@ -79,7 +85,7 @@ export class WhatsappService {
           "Accept": "application/json",
         },
       });
-      return response.data.data; // WAHA returns { mimetype, data } where data is base64
+      return response.data.data;
     } catch (error) {
       this.logger.warn(`Não foi possível obter QR Code para default: ${error.message}`);
       return null;
@@ -129,8 +135,67 @@ export class WhatsappService {
       businessName: string;
     }
   ): Promise<void> {
-    const message = `Olá *${data.clientName}*! 🌟\n\nConfirmamos seu agendamento de *${data.serviceName}*.\n\n📅 *Data:* ${data.date}\n⏰ *Hora:* ${data.time}\n🏢 *Local:* ${data.businessName}\n\nEstamos te esperando!`;
+    const template = await this.getConfirmationTemplate(userId);
+    const message = this.applyTemplate(template, data);
     return this.sendMessage(userId, phone, message);
+  }
+
+  async sendReminder(
+    userId: string,
+    phone: string,
+    data: {
+      clientName: string;
+      serviceName: string;
+      date: string;
+      time: string;
+      businessName: string;
+    }
+  ): Promise<void> {
+    const template = await this.getReminderTemplate(userId);
+    const message = this.applyTemplate(template, data);
+    return this.sendMessage(userId, phone, message);
+  }
+
+  private async getConfirmationTemplate(userId: string): Promise<string> {
+    try {
+      const settings = await this.prisma.siteSettings.findUnique({
+        where: { userId },
+      });
+      return settings?.appointmentConfirmationTemplate || DEFAULT_CONFIRMATION_TEMPLATE;
+    } catch {
+      return DEFAULT_CONFIRMATION_TEMPLATE;
+    }
+  }
+
+  private async getReminderTemplate(userId: string): Promise<string> {
+    const defaultTemplate = `Olá {clientName}, este é um lembrete do seu agendamento de {serviceName} amanhã, dia {date} às {time} com {businessName}. Responda SIM para confirmar ou NAO para cancelar.`;
+
+    try {
+      const settings = await this.prisma.siteSettings.findUnique({
+        where: { userId },
+      });
+      return settings?.appointmentReminderTemplate || defaultTemplate;
+    } catch {
+      return defaultTemplate;
+    }
+  }
+
+  private applyTemplate(
+    template: string,
+    data: {
+      clientName: string;
+      serviceName: string;
+      date: string;
+      time: string;
+      businessName: string;
+    }
+  ): string {
+    return template
+      .replace(/\{clientName\}/g, data.clientName)
+      .replace(/\{serviceName\}/g, data.serviceName)
+      .replace(/\{date\}/g, data.date)
+      .replace(/\{time\}/g, data.time)
+      .replace(/\{businessName\}/g, data.businessName);
   }
 
   private formatPhoneNumber(phone: string): string {

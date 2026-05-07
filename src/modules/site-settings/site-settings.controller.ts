@@ -34,6 +34,11 @@ export class SiteSettingsController {
       botTone: settings.botTone,
       botUseEmojis: settings.botUseEmojis,
       botMaxSentences: settings.botMaxSentences,
+      aiProvider: settings.aiProvider,
+      aiApiKey: settings.aiApiKey,
+      aiModel: settings.aiModel,
+      appointmentConfirmationTemplate: settings.appointmentConfirmationTemplate,
+      appointmentReminderTemplate: settings.appointmentReminderTemplate,
     };
   }
 

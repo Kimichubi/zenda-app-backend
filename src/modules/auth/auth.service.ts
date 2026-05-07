@@ -43,20 +43,22 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.usersRepository.findByEmail(dto.email);
-    if (!user) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-
-    const isPasswordValid = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
-    if (!isPasswordValid) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-
+    const user = await this.validateCredentials(dto.email, dto.password);
     return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
+  }
+
+  async validateCredentials(email: string, password: string) {
+    const user = await this.usersRepository.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException("Credenciais inválidas");
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException("Credenciais inválidas");
+    }
+
+    return user;
   }
 
   async refreshToken(userId: string, email: string) {
@@ -67,7 +69,7 @@ export class AuthService {
     return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
   }
 
-  private buildAuthResponse(userId: string, email: string, name: string, role: string, plan: string) {
+  buildAuthResponse(userId: string, email: string, name: string, role: string, plan: string) {
     const accessToken = this.jwtService.sign(
       { sub: userId, email },
       { expiresIn: "15m" },

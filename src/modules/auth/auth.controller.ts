@@ -1,13 +1,21 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, Patch, Req, UseGuards, Logger } from "@nestjs/common";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { AuthService } from "./auth.service";
+import { UsersRepository } from "../users/users.repository";
+import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { LoginDto } from "./dto/login.dto";
 import { SignupDto } from "./dto/signup.dto";
 
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly logger = new Logger(AuthController.name);
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersRepository: UsersRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post("signup")
   signup(@Body() dto: SignupDto) {
@@ -15,19 +23,91 @@ export class AuthController {
   }
 
   @Post("login")
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto) {
+    const user = await this.authService.validateCredentials(dto.email, dto.password);
+
+    // Generate and store verification code
+    const code = this.generateCode();
+    await this.prisma.verificationCode.create({
+      data: {
+        email: user.email,
+        code,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      },
+    });
+
+    // In a production app, send this via email
+    this.logger.log(`[2FA] Verification code for ${user.email}: ${code}`);
+
+    return {
+      requires2FA: true,
+      email: this.maskEmail(user.email),
+      message: "Um código de verificação foi enviado para seu email.",
+    };
+  }
+
+  @Post("verify-login-code")
+  async verifyLoginCode(@Body() body: { email: string; code: string }) {
+    const user = await this.usersRepository.findByEmail(body.email);
+    if (!user) {
+      return { valid: false, message: "Email não encontrado." };
+    }
+
+    const verification = await this.prisma.verificationCode.findFirst({
+      where: {
+        email: user.email,
+        code: body.code,
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!verification) {
+      return { valid: false, message: "Código inválido ou expirado." };
+    }
+
+    // Mark as used
+    await this.prisma.verificationCode.update({
+      where: { id: verification.id },
+      data: { used: true },
+    });
+
+    return this.authService.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get("validate")
-  validate(@Req() req: Request & { user: { id: string } }) {
-    return { valid: true, userId: req.user.id };
+  async validate(@Req() req: Request & { user: { id: string } }) {
+    const user = await this.usersRepository.findById(req.user.id);
+    return {
+      valid: true,
+      userId: req.user.id,
+      plan: user?.plan ?? "ONBOARDING",
+      needsOnboarding: user?.plan === "ONBOARDING",
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("complete-onboarding")
+  async completeOnboarding(@Req() req: Request & { user: { id: string } }) {
+    await this.usersRepository.update(req.user.id, { plan: "FREE" as any });
+    return { success: true, plan: "FREE" };
   }
 
   @UseGuards(JwtAuthGuard)
   @Post("refresh")
   refresh(@Req() req: Request & { user: { id: string; email: string } }) {
     return this.authService.refreshToken(req.user.id, req.user.email);
+  }
+
+  private generateCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  private maskEmail(email: string): string {
+    const [name, domain] = email.split("@");
+    const masked = name.charAt(0) + "***" + name.charAt(name.length - 1);
+    return `${masked}@${domain}`;
   }
 }

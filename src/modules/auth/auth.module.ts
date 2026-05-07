@@ -5,10 +5,12 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtStrategy } from "./jwt.strategy";
 import { UsersModule } from "../users/users.module";
+import { DatabaseModule } from "../../infrastructure/database/database.module";
 
 @Module({
   imports: [
     ConfigModule,
+    DatabaseModule,
     UsersModule,
     JwtModule.registerAsync({
       inject: [ConfigService],

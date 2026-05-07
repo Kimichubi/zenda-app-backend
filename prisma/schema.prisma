@@ -32,7 +32,7 @@ model User {
   businessName    String         @default("")
   slug            String         @unique @default("")
   role            UserRole       @default(USER)
-  plan            UserPlan       @default(FREE)
+  plan            UserPlan       @default(ONBOARDING)
   whatsappStatus  String         @default("DISCONNECTED")
 
   // Enterprise fields
@@ -65,6 +65,7 @@ enum UserRole {
 }
 
 enum UserPlan {
+  ONBOARDING
   FREE
   PRO
   ENTERPRISE
@@ -97,6 +98,15 @@ model SiteSettings {
   botTone           String   @default("amigável")
   botUseEmojis      Boolean  @default(true)
   botMaxSentences   Int      @default(3)
+
+  // AI Provider Settings
+  aiProvider        String   @default("default")
+  aiApiKey          String?  @db.Text
+  aiModel           String?
+
+  // Appointment Message Templates
+  appointmentConfirmationTemplate  String?  @db.Text
+  appointmentReminderTemplate      String?  @db.Text
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -407,6 +417,17 @@ model ChatLog {
 
   @@index([sessionId])
   @@index([createdAt])
+}
+
+model VerificationCode {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
 }
 
 enum AppointmentStatus {

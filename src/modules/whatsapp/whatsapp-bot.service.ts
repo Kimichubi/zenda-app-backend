@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { WhatsappService } from "../../infrastructure/notifications/whatsapp.service";
-import { QwenService, ChatMessage } from "../../infrastructure/ai/qwen.service";
+import { QwenService, ChatMessage, AiProviderConfig } from "../../infrastructure/ai/qwen.service";
 import { GeminiService } from "../../infrastructure/ai/gemini.service";
 import { ChatSessionService } from "./chat-session.service";
 import { IntentProcessorService } from "./intent-processor.service";
@@ -183,9 +183,10 @@ export class WhatsappBotService {
       appointmentsContext = clientId ? await this.getClientAppointmentsContext(clientId) : null;
     }
 
-    // 4.5. Buscar prompt customizado do dono do negócio
+    // 4.5. Buscar prompt customizado do dono do negócio e config de IA
     const ownerId = businessData ? (await this.prisma.business.findUnique({ where: { id: businessId! }, select: { ownerId: true } }))?.ownerId : undefined;
     const customPrompt = await this.getCustomPrompt(ownerId);
+    const aiConfig = await this.getUserAiConfig(ownerId);
 
     // 5. Montar mensagens para a IA
     const contextMessages = this.chatSessionService.getContextMessages(session);
@@ -194,16 +195,20 @@ export class WhatsappBotService {
     // 5. Chamar IA (Gemini first, fallback to OpenRouter)
     let aiResponse: { content: string; usage?: { promptTokens: number; completionTokens: number } };
     let parsed: { intent: string; response: string; action?: Record<string, unknown>; confidence?: number };
-    let usedProvider = this.aiProvider;
+    let usedProvider = aiConfig?.provider ?? this.aiProvider;
 
     try {
-      if (this.aiProvider === "gemini") {
+      if (usedProvider === "gemini") {
         this.logger.debug("[Bot] Usando Gemini AI");
-        aiResponse = await this.geminiService.chat(messages);
-        parsed = this.geminiService.parseResponse(aiResponse.content);
+        aiResponse = await this.geminiService.chat(messages, aiConfig?.gemini);
       } else {
         this.logger.debug("[Bot] Usando OpenRouter AI");
-        aiResponse = await this.qwenService.chat(messages);
+        aiResponse = await this.qwenService.chat(messages, undefined, aiConfig?.openrouter);
+      }
+
+      if (usedProvider === "gemini") {
+        parsed = this.geminiService.parseResponse(aiResponse.content);
+      } else {
         parsed = this.qwenService.parseResponse(aiResponse.content);
       }
     } catch (error) {
@@ -213,7 +218,7 @@ export class WhatsappBotService {
       if (usedProvider === "gemini") {
         try {
           this.logger.debug("[Bot] Fallback para OpenRouter");
-          aiResponse = await this.qwenService.chat(messages);
+          aiResponse = await this.qwenService.chat(messages, undefined, aiConfig?.openrouter);
           parsed = this.qwenService.parseResponse(aiResponse.content);
           usedProvider = "openrouter";
         } catch (fallbackError) {
@@ -343,6 +348,45 @@ export class WhatsappBotService {
     });
     if (!settings?.botEnabled) return null;
     return settings.botPrompt ?? null;
+  }
+
+  private async getUserAiConfig(userId: string | undefined): Promise<{
+    provider: string;
+    openrouter?: AiProviderConfig;
+    gemini?: AiProviderConfig;
+  } | null> {
+    if (!userId) return null;
+    const settings = await this.prisma.siteSettings.findUnique({
+      where: { userId },
+    });
+    if (!settings) return null;
+
+    // If using default provider, return null to use global config
+    if (settings.aiProvider === "default" || !settings.aiProvider) return null;
+
+    const result: { provider: string; openrouter?: AiProviderConfig; gemini?: AiProviderConfig } = {
+      provider: settings.aiProvider,
+    };
+
+    // OpenRouter config
+    if (settings.aiApiKey && (settings.aiProvider === "openrouter" || settings.aiProvider === "qwen")) {
+      result.openrouter = {
+        apiKey: settings.aiApiKey,
+        model: settings.aiModel ?? "meta-llama/llama-3.3-70b-instruct:free",
+      };
+    }
+
+    // Gemini config - user would need to provide their own Gemini key
+    // For now, if they set a custom key, we assume it's for their chosen provider
+    if (settings.aiProvider === "gemini" && settings.aiApiKey) {
+      result.gemini = {
+        apiKey: settings.aiApiKey,
+        model: settings.aiModel ?? "gemini-2.0-flash",
+        apiUrl: "https://generativelanguage.googleapis.com/v1beta/models",
+      };
+    }
+
+    return result;
   }
 
   private buildMessages(

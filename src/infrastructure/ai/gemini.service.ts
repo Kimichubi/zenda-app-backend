@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { ChatMessage, QwenResponse } from "./qwen.service";
+import { ChatMessage, QwenResponse, AiProviderConfig } from "./qwen.service";
 
 @Injectable()
 export class GeminiService {
@@ -16,9 +16,13 @@ export class GeminiService {
 
   async chat(
     messages: ChatMessage[],
+    customConfig?: AiProviderConfig,
   ): Promise<{ content: string; usage?: { promptTokens: number; completionTokens: number } }> {
-    if (!this.apiKey) {
-      this.logger.warn("GEMINAI_API_KEY não configurada. Retornando resposta de fallback.");
+    const apiKey = customConfig?.apiKey ?? this.apiKey;
+    const model = customConfig?.model ?? this.model;
+
+    if (!apiKey) {
+      this.logger.warn("Gemini API key não configurada. Retornando resposta de fallback.");
       return {
         content: JSON.stringify({
           intent: "FALLBACK",
@@ -37,7 +41,7 @@ export class GeminiService {
         parts: [{ text: msg.content }],
       }));
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const body: any = {
         contents,

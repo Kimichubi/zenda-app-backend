@@ -40,8 +40,14 @@ export class CronService {
     for (const appt of appointments) {
       try {
         if (!appt.client.phone || (appt.user.whatsappStatus !== 'SCANNING' && appt.user.whatsappStatus !== 'CONNECTED')) continue;
-        const message = `Olá ${appt.client.name}, este é um lembrete do seu agendamento de ${appt.service?.name || 'Serviço'} amanhã, dia ${tomorrow.toLocaleDateString('pt-BR')} às ${appt.startTime} com ${appt.user.businessName}. Responda SIM para confirmar ou NAO para cancelar.`;
-        await this.whatsappService.sendMessage(appt.userId, appt.client.phone, message);
+
+        await this.whatsappService.sendReminder(appt.userId, appt.client.phone, {
+          clientName: appt.client.name,
+          serviceName: appt.service?.name || 'Serviço',
+          date: tomorrow.toLocaleDateString('pt-BR'),
+          time: appt.startTime,
+          businessName: appt.user.businessName,
+        });
       } catch (error) {
         this.logger.error(`Erro ao enviar lembrete para ${appt.client.phone}: ${error.message}`);
       }

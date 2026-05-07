@@ -23,6 +23,12 @@ export interface QwenResponse {
   confidence?: number;
 }
 
+export interface AiProviderConfig {
+  apiKey: string;
+  model: string;
+  apiUrl?: string;
+}
+
 @Injectable()
 export class QwenService {
   private readonly logger = new Logger(QwenService.name);
@@ -55,34 +61,39 @@ export class QwenService {
   async chat(
     messages: ChatMessage[],
     tools?: ToolDefinition[],
+    customConfig?: AiProviderConfig,
   ): Promise<{ content: string; usage?: { promptTokens: number; completionTokens: number } }> {
-    if (!this.apiKey) {
-      this.logger.warn("OPENROUTER_API_KEY não configurada. Retornando resposta de fallback.");
+    const apiKey = customConfig?.apiKey ?? this.apiKey;
+    const model = customConfig?.model ?? this.model;
+    const apiUrl = customConfig?.apiUrl ?? this.apiUrl;
+
+    if (!apiKey) {
+      this.logger.warn("API key não configurada. Retornando resposta de fallback.");
       return { content: JSON.stringify({ intent: "FALLBACK", response: "Desculpe, nosso assistente virtual está temporariamente indisponível. Por favor, entre em contato pelo telefone do estabelecimento." }) };
     }
 
     try {
       const headers: Record<string, string> = {
-        Authorization: `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       };
 
       // OpenRouter requires these headers for identification
-      if (this.apiUrl.includes("openrouter.ai")) {
+      if (apiUrl.includes("openrouter.ai")) {
         headers["HTTP-Referer"] = this.configService.get<string>("FRONTEND_URL") ?? "https://zenda.app";
         headers["X-Title"] = "Zenda";
       }
 
-      const modelsToTry = [this.model, ...this.fallbackModels.filter((m) => m !== this.model)];
+      const modelsToTry = [model, ...this.fallbackModels.filter((m) => m !== model)];
 
-      for (const model of modelsToTry) {
+      for (const tryModel of modelsToTry) {
         try {
-          this.logger.debug(`Enviando requisição para ${this.apiUrl} com model=${model}`);
+          this.logger.debug(`Enviando requisição para ${apiUrl} com model=${tryModel}`);
 
           const response = await axios.post(
-            this.apiUrl,
+            apiUrl,
             {
-              model,
+              model: tryModel,
               messages,
               tools,
               temperature: 0.5,
@@ -106,18 +117,18 @@ export class QwenService {
           const errorText = attemptError.response?.data ? JSON.stringify(attemptError.response.data) : attemptError.message;
 
           if (status === 404 || status === 429) {
-            this.logger.warn(`Modelo ${model} não disponível (status ${status}), tentando próximo...`);
+            this.logger.warn(`Modelo ${tryModel} não disponível (status ${status}), tentando próximo...`);
             continue;
           }
 
-          this.logger.error(`OpenRouter API error ${status} com ${model}: ${errorText}`);
-          throw new Error(`OpenRouter API error: ${status}`);
+          this.logger.error(`API error ${status} com ${tryModel}: ${errorText}`);
+          throw new Error(`API error: ${status}`);
         }
       }
 
-      throw new Error("Nenhum modelo free disponível no OpenRouter");
+      throw new Error("Nenhum modelo disponível");
     } catch (error: any) {
-      this.logger.error(`Erro ao chamar OpenRouter API`, error instanceof Error ? error.stack : String(error));
+      this.logger.error(`Erro ao chamar API`, error instanceof Error ? error.stack : String(error));
       throw error;
     }
   }
