@@ -39,23 +39,23 @@ export class AuthService {
       slug,
     });
 
-    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan, (user as any).businessId);
   }
 
   async login(dto: LoginDto) {
     const user = await this.validateCredentials(dto.email, dto.password);
-    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan, (user as any).businessId);
   }
 
   async validateCredentials(email: string, password: string) {
     const user = await this.usersRepository.findByEmail(email);
     if (!user) {
-      throw new UnauthorizedException("Credenciais inválidas");
+      throw new UnauthorizedException("Credenciais invalidas");
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException("Credenciais inválidas");
+      throw new UnauthorizedException("Credenciais invalidas");
     }
 
     return user;
@@ -66,27 +66,24 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException();
     }
-    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan, (user as any).businessId);
   }
 
-  buildAuthResponse(userId: string, email: string, name: string, role: string, plan: string) {
-    const accessToken = this.jwtService.sign(
-      { sub: userId, email },
-      { expiresIn: "15m" },
-    );
+  buildAuthResponse(userId: string, email: string, name: string, role: string, plan: string, businessId?: string, rememberMe?: boolean) {
+    const payload: Record<string, unknown> = { sub: userId, email };
+    if (businessId) payload.businessId = businessId;
+
+    const accessExpiry = rememberMe ? "30d" : "15m";
+    const refreshExpiry = rememberMe ? "30d" : "7d";
+
+    const accessToken = this.jwtService.sign(payload, { expiresIn: accessExpiry });
     const refreshToken = this.jwtService.sign(
       { sub: userId, email, tokenType: "refresh" },
-      { expiresIn: "7d" },
+      { expiresIn: refreshExpiry },
     );
 
     return {
-      user: {
-        id: userId,
-        name,
-        email,
-        role,
-        plan
-      },
+      user: { id: userId, name, email, role, plan },
       accessToken,
       refreshToken,
     };

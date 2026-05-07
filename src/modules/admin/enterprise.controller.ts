@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Request } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { StaffService } from './staff.service';
 import { PosService } from './pos.service';
@@ -28,26 +28,35 @@ export class EnterpriseController {
     private readonly inventoryService: InventoryService,
   ) {}
 
+  private requireBusiness(req: any): string {
+    if (!req.user?.businessId) {
+      throw new BadRequestException('Nenhum negocio associado a este usuario');
+    }
+    return req.user.businessId;
+  }
+
   // --- Business & Loyalty Config ---
   @Get('business')
   async getBusiness(@Request() req) {
-    return this.businessService.getById(req.user.businessId);
+    return this.businessService.getById(this.requireBusiness(req));
   }
 
   @Patch('loyalty')
   async updateLoyalty(@Request() req, @Body() dto: UpdateLoyaltyConfigDto) {
-    return this.businessService.updateLoyalty(req.user.businessId, dto);
+    return this.businessService.updateLoyalty(this.requireBusiness(req), dto);
   }
 
   // --- Staff Routes ---
   @Post('staff')
   async addStaff(@Request() req, @Body() dto: CreateStaffDto) {
-    return this.staffService.addProfessional(req.user.businessId, dto);
+    return this.staffService.addProfessional(this.requireBusiness(req), dto);
   }
 
   @Get('staff')
   async listStaff(@Request() req) {
-    return this.staffService.listStaff(req.user.businessId);
+    const businessId = req.user?.businessId;
+    if (!businessId) return [];
+    return this.staffService.listStaff(businessId);
   }
 
   @Patch('staff/:id/commission')
@@ -57,76 +66,79 @@ export class EnterpriseController {
 
   @Delete('staff/:id')
   async removeStaff(@Param('id') id: string, @Request() req) {
-    return this.staffService.removeStaff(id, req.user.businessId);
+    return this.staffService.removeStaff(id, this.requireBusiness(req));
   }
 
   // --- Categories ---
   @Post('categories')
   async createCategory(@Request() req, @Body() data: { name: string }) {
-    return this.categoriesService.create(req.user.businessId, data);
+    return this.categoriesService.create(this.requireBusiness(req), data);
   }
 
   @Get('categories')
   async listCategories(@Request() req) {
-    return this.categoriesService.findAll(req.user.businessId);
+    const businessId = req.user?.businessId;
+    if (!businessId) return [];
+    return this.categoriesService.findAll(businessId);
   }
 
   @Patch('categories/:id')
   async updateCategory(@Param('id') id: string, @Request() req, @Body() data: { name: string }) {
-    return this.categoriesService.update(id, req.user.businessId, data);
+    return this.categoriesService.update(id, this.requireBusiness(req), data);
   }
 
   @Delete('categories/:id')
   async deleteCategory(@Param('id') id: string, @Request() req) {
-    return this.categoriesService.delete(id, req.user.businessId);
+    return this.categoriesService.delete(id, this.requireBusiness(req));
   }
 
   // --- Inventory & Products ---
   @Post('products')
   async createProduct(@Request() req, @Body() dto: CreateProductDto) {
-    return this.productsService.create(req.user.businessId, dto);
+    return this.productsService.create(this.requireBusiness(req), dto);
   }
 
   @Get('products')
   async listProducts(@Request() req) {
-    return this.productsService.findAll(req.user.businessId);
+    const businessId = req.user?.businessId;
+    if (!businessId) return [];
+    return this.productsService.findAll(businessId);
   }
 
   @Patch('products/:id')
   async updateProduct(@Param('id') id: string, @Request() req, @Body() dto: Partial<CreateProductDto>) {
-    return this.productsService.update(id, req.user.businessId, dto);
+    return this.productsService.update(id, this.requireBusiness(req), dto);
   }
 
   @Delete('products/:id')
   async deleteProduct(@Param('id') id: string, @Request() req) {
-    return this.productsService.delete(id, req.user.businessId);
+    return this.productsService.delete(id, this.requireBusiness(req));
   }
 
   // --- Inventory ---
   @Get('inventory/movements')
   async getMovements(@Request() req, @Query('productId') productId?: string) {
-    return this.inventoryService.getMovements(req.user.businessId, productId);
+    return this.inventoryService.getMovements(this.requireBusiness(req), productId);
   }
 
   @Get('inventory/low-stock')
   async getLowStock(@Request() req) {
-    return this.inventoryService.getLowStock(req.user.businessId);
+    return this.inventoryService.getLowStock(this.requireBusiness(req));
   }
 
   @Post('inventory/restock')
   async restock(@Request() req, @Body() data: { productId: string; quantity: number; reason: string }) {
-    return this.inventoryService.restock(data.productId, req.user.businessId, data.quantity, data.reason || 'RESTOCK');
+    return this.inventoryService.restock(data.productId, this.requireBusiness(req), data.quantity, data.reason || 'RESTOCK');
   }
 
   // --- POS Routes ---
   @Post('checkout')
   async checkout(@Request() req, @Body() dto: CheckoutDto) {
-    const sale = await this.posService.checkout(req.user.businessId, req.user.id, dto);
+    const sale = await this.posService.checkout(this.requireBusiness(req), req.user.id, dto);
     await this.loyaltyService.processSalePoints(sale.id);
     return sale;
   }
 
-  // --- Appointment Checkout ---
   @Post('checkout/appointment/:id')
   async checkoutAppointment(@Param('id') id: string, @Body() body: {
     tipAmount?: number;

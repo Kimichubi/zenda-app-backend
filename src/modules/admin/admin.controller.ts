@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { AdminGuard } from "../../common/guards/admin.guard";
 import { UsersRepository } from "../users/users.repository";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
+import { AuthService } from "../auth/auth.service";
 import { UserPlan } from "../users/users.entity";
 
 @Controller("admin")
@@ -11,6 +12,7 @@ export class AdminController {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
   ) {}
 
   @Get("users")
@@ -110,5 +112,15 @@ export class AdminController {
       newThisMonth,
       recentUsers,
     };
+  }
+
+  @Post("impersonate/:userId")
+  async impersonate(@Param("userId") userId: string) {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) return null;
+
+    return this.authService.buildAuthResponse(
+      user.id, user.email, user.name, user.role, user.plan, (user as any).businessId,
+    );
   }
 }

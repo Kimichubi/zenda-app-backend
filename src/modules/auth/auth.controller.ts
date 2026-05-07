@@ -23,8 +23,16 @@ export class AuthController {
   }
 
   @Post("login")
-  async login(@Body() dto: LoginDto) {
-    const user = await this.authService.validateCredentials(dto.email, dto.password);
+  async login(@Body() body: any) {
+    const user = await this.authService.validateCredentials(body.email, body.password);
+
+    // Se "remember me" ativo, pula 2FA e vai direto
+    if (body.rememberMe) {
+      const response = this.authService.buildAuthResponse(
+        user.id, user.email, user.name, user.role, user.plan, (user as any).businessId, true,
+      );
+      return response;
+    }
 
     // Generate and store verification code
     const code = this.generateCode();
@@ -32,11 +40,10 @@ export class AuthController {
       data: {
         email: user.email,
         code,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       },
     });
 
-    // In a production app, send this via email
     this.logger.log(`[2FA] Verification code for ${user.email}: ${code}`);
 
     return {
@@ -73,7 +80,9 @@ export class AuthController {
       data: { used: true },
     });
 
-    return this.authService.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan);
+    return this.authService.buildAuthResponse(
+      user.id, user.email, user.name, user.role, user.plan, (user as any).businessId,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

@@ -15,11 +15,13 @@ import { ReviewController } from './review.controller';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
 import { UsersModule } from '../users/users.module';
 import { AppointmentsModule } from '../appointments/appointments.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     DatabaseModule,
     UsersModule,
+    AuthModule,
     forwardRef(() => AppointmentsModule),
   ],
   controllers: [AdminController, EnterpriseController, ReviewController],
