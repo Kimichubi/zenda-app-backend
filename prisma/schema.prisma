@@ -91,6 +91,13 @@ model SiteSettings {
   googleBusinessUrl String?
   galleryPhotos     String[]
 
+  // Bot / AI Settings
+  botEnabled        Boolean  @default(true)
+  botPrompt         String?  @db.Text
+  botTone           String   @default("amigável")
+  botUseEmojis      Boolean  @default(true)
+  botMaxSentences   Int      @default(3)
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

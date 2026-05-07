@@ -51,7 +51,7 @@ export class IntentProcessorService {
         return this.queryAppointments(clientId);
       case "FALLBACK":
       default:
-        return { success: false, message: "Não consegui entender o que você precisa. Posso te ajudar a agendar um horário, consultar seus agendamentos ou cancelar." };
+        return { success: false, message: "Oi! 😊 Posso te ajudar com várias coisas:\n\n💇‍♂️ Ver nossos serviços\n📅 Agendar um horário\n📋 Consultar seus agendamentos\n❌ Cancelar um agendamento\n\nO que você precisa hoje?" };
     }
   }
 
@@ -74,11 +74,11 @@ export class IntentProcessorService {
       return { success: false, message: "No momento não temos serviços cadastrados." };
     }
 
-    const list = services.map((s) => `• ${s.name} — R$${s.price.toFixed(2)} (${s.duration}min)`).join("\n");
+    const list = services.map((s) => `💇‍♂️ *${s.name}* — R$${s.price.toFixed(2)} ⏱️ ${s.duration}min`).join("\n");
     return {
       success: true,
       data: services,
-      message: `Aqui estão nossos serviços:\n${list}\n\nQual você gostaria de agendar?`,
+      message: `✨ *Nossos Serviços* ✨\n\n${list}\n\nQual desses você gostaria de agendar? É só me dizer o nome! 😊`,
     };
   }
 
@@ -89,7 +89,7 @@ export class IntentProcessorService {
     serviceId: string | undefined,
   ): Promise<IntentResult> {
     if (!slug || !date || !serviceId) {
-      return { success: false, message: "Para mostrar os horários disponíveis, preciso saber qual serviço e qual data." };
+      return { success: false, message: "Claro! Para te mostrar os horários, me diz qual serviço você quer e qual data! 😊" };
     }
 
     try {
@@ -97,18 +97,18 @@ export class IntentProcessorService {
       const available = slots.filter((s) => s.available);
 
       if (available.length === 0) {
-        return { success: false, message: `Não temos horários disponíveis para ${date}. Que tal outro dia?` };
+        return { success: false, message: `Ops! 😅 Não temos horários disponíveis para ${date}. Que tal outro dia? Me diz qual funciona melhor pra você!` };
       }
 
       const times = available.map((s) => s.time).join(", ");
       return {
         success: true,
         data: available,
-        message: `Horários disponíveis para ${date}:\n${times}\n\nQual horário prefere?`,
+        message: `✨ *Horários disponíveis para ${date}:* ✨\n\n⏰ ${times}\n\nQual desses horários funciona melhor pra você? 😊`,
       };
     } catch (error) {
       this.logger.error("Erro ao buscar slots", error instanceof Error ? error.stack : String(error));
-      return { success: false, message: "Desculpe, tive um problema ao buscar os horários. Tente novamente mais tarde." };
+      return { success: false, message: "Ops, tive um probleminha ao buscar os horários! 😅 Pode tentar de novo daqui a pouquinho?" };
     }
   }
 
@@ -131,14 +131,14 @@ export class IntentProcessorService {
       await this.bookingService.createBooking(slug, dto as any);
       return {
         success: true,
-        message: `Agendamento confirmado! ✅\n\n📅 ${dto.date}\n⏰ ${dto.startTime}\n\nTe esperamos!`,
+        message: `🎉 *Agendamento Confirmado!* 🎉\n\n✂️ Serviço: ${dto.serviceId ? "agendado" : "confirmado"}\n📅 Data: ${dto.date}\n⏰ Horário: ${dto.startTime}\n\nEstamos te esperando! Qualquer coisa é só chamar. ✨`,
       };
     } catch (error) {
       this.logger.error("Erro ao criar agendamento", error instanceof Error ? error.stack : String(error));
       if (error instanceof NotFoundException) {
-        return { success: false, message: "Não encontrei o serviço ou profissional solicitado." };
+        return { success: false, message: "Hmm, não encontrei esse serviço ou profissional. Pode me confirmar qual você quer? 🤔" };
       }
-      return { success: false, message: "Esse horário não está mais disponível. Que tal outro?" };
+      return { success: false, message: "Ops, esse horário acabou de ser ocupado! 😅 Que tal outro horário? Me diz qual dia e hora funciona pra você!" };
     }
   }
 
@@ -149,14 +149,14 @@ export class IntentProcessorService {
           where: { id: appointmentId },
           data: { status: "CANCELLED" },
         });
-        return { success: true, message: "Agendamento cancelado com sucesso. Sentiremos sua falta! 😔" };
+        return { success: true, message: "✅ *Cancelado com sucesso!* ✅\n\nSentiremos sua falta, mas quando quiser voltar é só chamar! Estamos aqui pra você. 😊" };
       } catch {
-        return { success: false, message: "Não consegui encontrar esse agendamento." };
+        return { success: false, message: "Hmm, não consegui encontrar esse agendamento. Pode me confirmar qual é? 🤔" };
       }
     }
 
     if (!clientId) {
-      return { success: false, message: "Preciso saber quem você é para cancelar o agendamento." };
+      return { success: false, message: "Oi! Para eu cancelar seu agendamento, preciso saber quem você é. Qual seu nome e telefone? 😊" };
     }
 
     const appointments = await this.prisma.appointment.findMany({
@@ -210,17 +210,17 @@ export class IntentProcessorService {
     });
 
     if (appointments.length === 0) {
-      return { success: false, message: "Você não tem agendamentos futuros. Quer agendar um horário?" };
+      return { success: false, message: "📅 Você não tem agendamentos futuros no momento. Quer marcar um horário? É só me dizer qual serviço e quando! ✨" };
     }
 
     const list = appointments
-      .map((a) => `• ${a.service?.name} — ${a.date.toLocaleDateString("pt-BR")} às ${a.startTime} (${a.user.name})`)
+      .map((a) => `📅 *${a.service?.name ?? "Serviço"}* — ${a.date.toLocaleDateString("pt-BR")} às ${a.startTime} ⏰ (${a.user.name})`)
       .join("\n");
 
     return {
       success: true,
       data: appointments,
-      message: `Seus próximos agendamentos:\n${list}`,
+      message: `✨ *Seus Próximos Agendamentos* ✨\n\n${list}\n\nPrecisa cancelar ou remarcar algum? É só me avisar! 😊`,
     };
   }
 }

@@ -7,24 +7,33 @@ import { GeminiService } from "../../infrastructure/ai/gemini.service";
 import { ChatSessionService } from "./chat-session.service";
 import { IntentProcessorService } from "./intent-processor.service";
 
-const SYSTEM_PROMPT_TEMPLATE = `Você é Zenda, assistente virtual de um estabelecimento de beleza (barbearia/salão).
-Seu objetivo é ajudar clientes a agendar, consultar ou cancelar atendimentos de forma natural, amigável e breve.
+const SYSTEM_PROMPT_TEMPLATE = `Você é Zenda, uma assistente virtual super simpática e acolhedora de um estabelecimento de beleza (barbearia/salão). Você fala como uma amiga próxima — casual, prestativa, com emojis, e sempre de forma humana e natural.
 
-REGRAS:
-- Responda em português brasileiro, de forma casual e amigável
-- Use no máximo 2-3 frases curtas
+ESTILO DE COMUNICAÇÃO:
+- Fale em português brasileiro, de forma super casual e amigável
+- Use emojis (✨, 💇‍♂️, 📅, ⏰, ✅) para deixar a conversa mais leve
+- Seja calorosa e acolhedora — cumprimente o cliente, use "Oi!", "Claro!", "Com certeza!"
+- Use no máximo 3-4 frases, mas seja completa nas informações
+- Sempre confirme antes de agendar ou cancelar algo
+- Se o cliente perguntar sobre serviços, liste TODOS com preços e duração de forma organizada
+- Se o cliente perguntar sobre agendamentos, mostre TODOS os próximos agendamentos dele
+- Use a data atual como referência: {currentDate}
+
+REGRAS IMPORTANTES:
 - Sempre peça confirmação antes de executar ações de agendamento ou cancelamento
 - Se não souber ou não conseguir ajudar, use intent "FALLBACK"
 - Para agendar, você precisa: serviço, data (YYYY-MM-DD), horário, nome do cliente
-- Use a data atual como referência: {currentDate}
+- NUNCA invente preços ou serviços que não estão na lista abaixo
 
-FUNCIONÁRIOS E SERVIÇOS DISPONÍVEIS:
+SERVIÇOS DISPONÍVEIS:
 {services}
+
+{appointmentsContext}
 
 FORMATO DE RESPOSTA (apenas JSON, sem markdown):
 {
   "intent": "BOOK|CANCEL|QUERY_SERVICES|QUERY_SLOTS|QUERY_APPOINTMENTS|FALLBACK",
-  "response": "mensagem amigável para o cliente",
+  "response": "mensagem amigável e completa para o cliente, com emojis e informações claras",
   "confidence": 0.95,
   "action": {
     // dados necessários para a ação, ex:
@@ -56,6 +65,79 @@ export class WhatsappBotService {
   }
 
   async processIncomingMessage(phone: string, text: string): Promise<void> {
+    const result = await this.generateResponse(phone, text);
+
+    // Enviar resposta pelo WhatsApp
+    await this.whatsappService.sendMessage("default", result.cleanPhone, result.finalResponse);
+
+    // Salvar contexto e log
+    await this.chatSessionService.updateContext(result.sessionId, text, result.finalResponse);
+    await this.chatSessionService.saveLog(
+      result.sessionId,
+      text,
+      result.finalResponse,
+      result.intent,
+      result.confidence,
+      {
+        model: result.model,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        action: result.action ?? null,
+      },
+    );
+  }
+
+  async processTestMessage(phone: string, text: string, testContext?: {
+    services?: string;
+    appointments?: string;
+    currentDate?: string;
+  }): Promise<{
+    response: string;
+    intent: string;
+    confidence: number;
+    model: string;
+  }> {
+    const result = await this.generateResponse(phone, text, testContext);
+
+    // Salvar contexto e log (sem enviar WhatsApp)
+    await this.chatSessionService.updateContext(result.sessionId, text, result.finalResponse);
+    await this.chatSessionService.saveLog(
+      result.sessionId,
+      text,
+      result.finalResponse,
+      result.intent,
+      result.confidence,
+      {
+        model: result.model,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        action: result.action ?? null,
+      },
+    );
+
+    return {
+      response: result.finalResponse,
+      intent: result.intent,
+      confidence: result.confidence,
+      model: result.model,
+    };
+  }
+
+  private async generateResponse(phone: string, text: string, testContext?: {
+    services?: string;
+    appointments?: string;
+    currentDate?: string;
+  }): Promise<{
+    cleanPhone: string;
+    sessionId: string;
+    finalResponse: string;
+    intent: string;
+    confidence: number;
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    action?: Record<string, unknown>;
+  }> {
     const cleanPhone = this.cleanPhone(phone);
     this.logger.log(`[Bot] Mensagem de ${cleanPhone}: ${text.slice(0, 100)}`);
 
@@ -84,12 +166,30 @@ export class WhatsappBotService {
       }
     }
 
-    // 4. Buscar dados do estabelecimento para o prompt
-    const businessData = businessId ? await this.getBusinessData(businessId) : null;
+    // 4. Buscar dados do estabelecimento e agendamentos do cliente para o prompt
+    // Se testContext é fornecido, usar os dados do contexto em vez de buscar no banco
+    let businessData: { name: string; slug: string; services: string } | null = null;
+    let appointmentsContext: string | null = null;
 
-    // 4. Montar mensagens para a IA
+    if (testContext?.services) {
+      businessData = { name: 'Seu Negócio', slug: '', services: testContext.services };
+    } else {
+      businessData = businessId ? await this.getBusinessData(businessId) : null;
+    }
+
+    if (testContext?.appointments) {
+      appointmentsContext = `AGENDAMENTOS DO CLIENTE:\n${testContext.appointments}`;
+    } else {
+      appointmentsContext = clientId ? await this.getClientAppointmentsContext(clientId) : null;
+    }
+
+    // 4.5. Buscar prompt customizado do dono do negócio
+    const ownerId = businessData ? (await this.prisma.business.findUnique({ where: { id: businessId! }, select: { ownerId: true } }))?.ownerId : undefined;
+    const customPrompt = await this.getCustomPrompt(ownerId);
+
+    // 5. Montar mensagens para a IA
     const contextMessages = this.chatSessionService.getContextMessages(session);
-    const messages = this.buildMessages(text, contextMessages, businessData);
+    const messages = this.buildMessages(text, contextMessages, businessData, appointmentsContext, customPrompt, testContext?.currentDate);
 
     // 5. Chamar IA (Gemini first, fallback to OpenRouter)
     let aiResponse: { content: string; usage?: { promptTokens: number; completionTokens: number } };
@@ -151,24 +251,19 @@ export class WhatsappBotService {
       }
     }
 
-    // 8. Enviar resposta pelo WhatsApp
-    await this.whatsappService.sendMessage("default", cleanPhone, finalResponse);
+    const model = usedProvider === "gemini" ? "gemini-2.0-flash" : usedProvider === "openrouter" ? "openrouter-free" : "qwen3-8b";
 
-    // 9. Salvar contexto e log
-    await this.chatSessionService.updateContext(session.id, text, finalResponse);
-    await this.chatSessionService.saveLog(
-      session.id,
-      text,
+    return {
+      cleanPhone,
+      sessionId: session.id,
       finalResponse,
-      parsed.intent,
+      intent: parsed.intent,
       confidence,
-      {
-        model: usedProvider === "gemini" ? "gemini-2.0-flash" : usedProvider === "openrouter" ? "openrouter-free" : "qwen3-8b",
-        promptTokens: aiResponse?.usage?.promptTokens ?? 0,
-        completionTokens: aiResponse?.usage?.completionTokens ?? 0,
-        action: parsed.action ?? null,
-      },
-    );
+      model,
+      promptTokens: aiResponse?.usage?.promptTokens ?? 0,
+      completionTokens: aiResponse?.usage?.completionTokens ?? 0,
+      action: parsed.action,
+    };
   }
 
   private async findClientByPhone(phone: string) {
@@ -190,6 +285,29 @@ export class WhatsappBotService {
       orderBy: { createdAt: "asc" },
     });
     return business;
+  }
+
+  private async getClientAppointmentsContext(clientId: string) {
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        clientId,
+        status: { in: ["SCHEDULED", "CONFIRMED"] },
+        date: { gte: new Date() },
+      },
+      orderBy: { date: "asc" },
+      take: 10,
+      include: { service: true, user: true },
+    });
+
+    if (appointments.length === 0) {
+      return null;
+    }
+
+    const list = appointments
+      .map((a) => `• ${a.service?.name ?? "Serviço"} — ${a.date.toLocaleDateString("pt-BR")} às ${a.startTime} (${a.user.name})`)
+      .join("\n");
+
+    return `AGENDAMENTOS DO CLIENTE:\n${list}`;
   }
 
   private async getBusinessData(businessId: string) {
@@ -218,16 +336,31 @@ export class WhatsappBotService {
     };
   }
 
+  private async getCustomPrompt(userId: string | undefined) {
+    if (!userId) return null;
+    const settings = await this.prisma.siteSettings.findUnique({
+      where: { userId },
+    });
+    if (!settings?.botEnabled) return null;
+    return settings.botPrompt ?? null;
+  }
+
   private buildMessages(
     userText: string,
     context: { role: "user" | "assistant"; content: string }[],
     businessData: { name: string; slug: string; services: string } | null,
+    appointmentsContext: string | null,
+    customPrompt: string | null,
+    overrideDate?: string,
   ): ChatMessage[] {
-    const currentDate = new Date().toLocaleDateString("pt-BR");
+    const currentDate = overrideDate ?? new Date().toLocaleDateString("pt-BR");
 
-    const systemPrompt = SYSTEM_PROMPT_TEMPLATE
+    const basePrompt = customPrompt ?? SYSTEM_PROMPT_TEMPLATE;
+
+    const systemPrompt = basePrompt
       .replace("{currentDate}", currentDate)
-      .replace("{services}", businessData?.services ?? "Não disponível");
+      .replace("{services}", businessData?.services ?? "Não disponível")
+      .replace("{appointmentsContext}", appointmentsContext ?? "AGENDAMENTOS DO CLIENTE: Nenhum agendamento futuro encontrado.");
 
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },

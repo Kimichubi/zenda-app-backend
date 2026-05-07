@@ -23,4 +23,23 @@ export class SiteSettingsController {
   async updateSettings(@Request() req, @Body() data: Prisma.SiteSettingsUpdateInput) {
     return this.siteSettingsService.updateSettings(req.user.id, data);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('bot')
+  async getBotSettings(@Request() req) {
+    const settings = await this.siteSettingsService.getSettingsByUserId(req.user.id);
+    return {
+      botEnabled: settings.botEnabled,
+      botPrompt: settings.botPrompt,
+      botTone: settings.botTone,
+      botUseEmojis: settings.botUseEmojis,
+      botMaxSentences: settings.botMaxSentences,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('bot')
+  async updateBotSettings(@Request() req, @Body() data: Prisma.SiteSettingsUpdateInput) {
+    return this.siteSettingsService.updateSettings(req.user.id, data);
+  }
 }

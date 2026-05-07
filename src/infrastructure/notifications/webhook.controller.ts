@@ -17,6 +17,8 @@ export class WebhookController {
     try {
       const event = body.event;
       const payload = body.payload;
+      const testMode = body.testMode === true;
+      const testContext = body.context;
 
       if (event === 'message.received') {
         const fromPhone = payload.from;
@@ -33,10 +35,23 @@ export class WebhookController {
         // Manter compatibilidade com confirmação SIM/NAO do cron
         if (upperText === 'SIM' || upperText === 'NAO' || upperText === 'NÃO') {
           await this.processClientResponse(fromPhone, upperText);
-        } else {
-          // Rotear para o bot de IA
-          await this.botService.processIncomingMessage(fromPhone, text);
+          return { status: 'success' };
         }
+
+        // Rotear para o bot de IA
+        if (testMode) {
+          const result = await this.botService.processTestMessage(fromPhone, text, testContext);
+          return {
+            status: 'success',
+            testMode: true,
+            response: result.response,
+            intent: result.intent,
+            confidence: result.confidence,
+            model: result.model,
+          };
+        }
+
+        await this.botService.processIncomingMessage(fromPhone, text);
       }
     } catch (error) {
       this.logger.error('Erro ao processar webhook do WAHA', error instanceof Error ? error.stack : String(error));
