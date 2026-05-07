@@ -13,14 +13,13 @@ export class BusinessService {
       const business = await tx.business.create({
         data: {
           ...data,
-          ownerId,
           loyaltyConfig: { create: {} },
         },
       });
 
       await tx.user.update({
         where: { id: ownerId },
-        data: { businessId: business.id, role: 'ADMIN' },
+        data: { businessId: business.id, role: 'OWNER' },
       });
 
       return business;

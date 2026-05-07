@@ -11,12 +11,12 @@ export class ServicesService {
   constructor(private readonly servicesRepository: ServicesRepository) { }
 
   async findAll(
-    userId: string,
+    businessId: string,
     query: FindServicesDto = {},
   ): Promise<PaginatedResponse<ServiceEntity>> {
     const { page = 1, limit = 10 } = query;
-    const { data, total } = await this.servicesRepository.findManyByUserId(
-      userId,
+    const { data, total } = await this.servicesRepository.findManyByBusinessId(
+      businessId,
       query,
     );
     return { data, total, page, limit };
@@ -26,15 +26,15 @@ export class ServicesService {
     return this.servicesRepository.findById(id);
   }
 
-  create(userId: string, dto: CreateServiceDto) {
-    return this.servicesRepository.create(userId, dto);
+  create(businessId: string, dto: CreateServiceDto) {
+    return this.servicesRepository.create(businessId, dto);
   }
 
-  update(userId: string, id: string, dto: UpdateServiceDto) {
-    return this.servicesRepository.update(id, userId, dto);
+  update(businessId: string, id: string, dto: UpdateServiceDto) {
+    return this.servicesRepository.update(id, businessId, dto);
   }
 
-  remove(userId: string, id: string) {
-    return this.servicesRepository.delete(id, userId);
+  remove(businessId: string, id: string) {
+    return this.servicesRepository.delete(id, businessId);
   }
 }

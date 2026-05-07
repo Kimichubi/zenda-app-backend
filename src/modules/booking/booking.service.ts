@@ -3,49 +3,65 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { UsersRepository } from "../users/users.repository";
 import { ServicesRepository } from "../services/services.repository";
 import { AppointmentsRepository } from "../appointments/appointments.repository";
 import { ClientsRepository } from "../clients/clients.repository";
-import { SchedulesRepository } from "../schedules/schedules.repository";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 
 @Injectable()
 export class BookingService {
   constructor(
-    private readonly usersRepository: UsersRepository,
     private readonly servicesRepository: ServicesRepository,
     private readonly appointmentsRepository: AppointmentsRepository,
     private readonly clientsRepository: ClientsRepository,
-    private readonly schedulesRepository: SchedulesRepository,
     private readonly prisma: PrismaService,
   ) { }
 
-  async getServices(slug: string) {
-    const user = await this.usersRepository.findBySlug(slug);
-    if (!user) {
-      throw new NotFoundException("Professional not found");
+  private async findBusinessBySlug(slug: string) {
+    const business = await this.prisma.business.findUnique({
+      where: { slug },
+      include: {
+        staff: { select: { id: true, name: true, role: true } },
+        services: true,
+      },
+    });
+    if (!business) {
+      throw new NotFoundException("Business not found");
     }
-    return this.servicesRepository.findManyByUserId(user.id);
+    return business;
   }
 
-  async getAvailableSlots(slug: string, dateStr: string, serviceId: string) {
-    const user = await this.usersRepository.findBySlug(slug);
-    if (!user) {
-      throw new NotFoundException("Professional not found");
-    }
+  async getServices(slug: string) {
+    const business = await this.findBusinessBySlug(slug);
+    return this.servicesRepository.findManyByBusinessId(business.id);
+  }
+
+  async getAvailableSlots(slug: string, dateStr: string, serviceId: string, professionalId?: string) {
+    const business = await this.findBusinessBySlug(slug);
 
     const service = await this.servicesRepository.findById(serviceId);
     if (!service) {
       throw new NotFoundException("Service not found");
     }
 
+    // Use first staff member if not specified
+    const profId = professionalId || (business.staff.length > 0 ? business.staff[0].id : null);
+    if (!profId) {
+      return [];
+    }
+
     const date = new Date(dateStr);
     const weekday = date.getDay();
 
     const schedule = await this.prisma.schedule.findUnique({
-      where: { userId_weekday: { userId: user.id, weekday } },
+      where: {
+        businessId_professionalId_weekday: {
+          businessId: business.id,
+          professionalId: profId,
+          weekday,
+        },
+      },
     });
 
     if (!schedule) {
@@ -58,7 +74,7 @@ export class BookingService {
     dayEnd.setDate(dayEnd.getDate() + 1);
 
     const existingAppointments = (
-      await this.appointmentsRepository.findByWeek(user.id, dayStart)
+      await this.appointmentsRepository.findByWeek(profId, dayStart)
     ).filter(
       (a) =>
         a.date >= dayStart &&
@@ -69,7 +85,7 @@ export class BookingService {
 
     const blockedSlots = await this.prisma.blockedSlot.findMany({
       where: {
-        userId: user.id,
+        professionalId: profId,
         date: { gte: dayStart, lt: dayEnd },
       },
     });
@@ -128,19 +144,21 @@ export class BookingService {
   }
 
   async createBooking(slug: string, dto: CreateBookingDto) {
-    const user = await this.usersRepository.findBySlug(slug);
-    if (!user) {
-      throw new NotFoundException("Professional not found");
-    }
+    const business = await this.findBusinessBySlug(slug);
 
     const service = await this.servicesRepository.findById(dto.serviceId);
     if (!service) {
       throw new NotFoundException("Service not found");
     }
 
+    const profId = (dto as any).professionalId || (business.staff.length > 0 ? business.staff[0].id : null);
+    if (!profId) {
+      throw new NotFoundException("No professional available");
+    }
+
     const date = new Date(dto.date);
     const conflict = await this.appointmentsRepository.findConflict(
-      user.id,
+      profId,
       date,
       dto.startTime,
     );
@@ -148,13 +166,13 @@ export class BookingService {
       throw new ConflictException("Time slot is no longer available");
     }
 
-    let client = await this.clientsRepository.findByPhoneAndUserId(
+    let client = await this.clientsRepository.findByPhoneAndBusinessId(
       dto.clientPhone,
-      user.id,
+      business.id,
     );
 
     if (!client) {
-      client = await this.clientsRepository.create(user.id, {
+      client = await this.clientsRepository.create(business.id, {
         name: dto.clientName,
         phone: dto.clientPhone,
         email: dto.clientEmail,
@@ -165,7 +183,9 @@ export class BookingService {
     const endMinutes = h * 60 + m + service.duration;
     const endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
 
-    await this.appointmentsRepository.create(user.id, {
+    await this.appointmentsRepository.create({
+      businessId: business.id,
+      professionalId: profId,
       clientId: client.id,
       serviceId: dto.serviceId,
       date,

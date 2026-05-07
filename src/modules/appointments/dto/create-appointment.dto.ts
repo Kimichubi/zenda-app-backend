@@ -8,6 +8,10 @@ export class CreateAppointmentDto {
   @IsString()
   serviceId?: string;
 
+  @IsOptional()
+  @IsString()
+  professionalId?: string;
+
   @IsDateString()
   date: string;
 

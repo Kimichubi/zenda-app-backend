@@ -1,7 +1,15 @@
-import { Controller, Get, Put, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { SiteSettingsService } from './site-settings.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { BusinessGuard } from '../../common/guards/business.guard';
 import { Prisma } from '@prisma/client';
+
+function requireBusinessId(req: any): string {
+  if (!req.user?.businessId) {
+    throw new BadRequestException("Nenhum negocio associado. Complete o onboarding.");
+  }
+  return req.user.businessId;
+}
 
 @Controller('site-settings')
 export class SiteSettingsController {
@@ -12,22 +20,22 @@ export class SiteSettingsController {
     return this.siteSettingsService.getSettingsBySlug(slug);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, BusinessGuard)
   @Get()
   async getSettings(@Request() req) {
-    return this.siteSettingsService.getSettingsByUserId(req.user.id);
+    return this.siteSettingsService.getSettingsByBusinessId(requireBusinessId(req));
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, BusinessGuard)
   @Put()
   async updateSettings(@Request() req, @Body() data: Prisma.SiteSettingsUpdateInput) {
-    return this.siteSettingsService.updateSettings(req.user.id, data);
+    return this.siteSettingsService.updateSettings(requireBusinessId(req), data);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, BusinessGuard)
   @Get('bot')
   async getBotSettings(@Request() req) {
-    const settings = await this.siteSettingsService.getSettingsByUserId(req.user.id);
+    const settings = await this.siteSettingsService.getSettingsByBusinessId(requireBusinessId(req));
     return {
       botEnabled: settings.botEnabled,
       botPrompt: settings.botPrompt,
@@ -42,9 +50,9 @@ export class SiteSettingsController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, BusinessGuard)
   @Put('bot')
   async updateBotSettings(@Request() req, @Body() data: Prisma.SiteSettingsUpdateInput) {
-    return this.siteSettingsService.updateSettings(req.user.id, data);
+    return this.siteSettingsService.updateSettings(requireBusinessId(req), data);
   }
 }

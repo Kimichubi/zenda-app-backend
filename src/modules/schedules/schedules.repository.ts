@@ -1,9 +1,11 @@
 import { ScheduleEntity } from "./schedules.entity";
 
 export abstract class SchedulesRepository {
-  abstract list(userId: string): Promise<ScheduleEntity[]>;
+  abstract listByBusinessId(businessId: string): Promise<ScheduleEntity[]>;
+  abstract listByProfessionalId(professionalId: string): Promise<ScheduleEntity[]>;
   abstract upsert(
-    userId: string,
+    businessId: string,
+    professionalId: string,
     input: { weekday: number; startTime: string; endTime: string },
   ): Promise<ScheduleEntity>;
 }

@@ -135,7 +135,8 @@ export class WhatsappService {
       businessName: string;
     }
   ): Promise<void> {
-    const template = await this.getConfirmationTemplate(userId);
+    const businessId = await this.getBusinessIdFromUser(userId);
+    const template = businessId ? await this.getConfirmationTemplate(businessId) : DEFAULT_CONFIRMATION_TEMPLATE;
     const message = this.applyTemplate(template, data);
     return this.sendMessage(userId, phone, message);
   }
@@ -151,15 +152,24 @@ export class WhatsappService {
       businessName: string;
     }
   ): Promise<void> {
-    const template = await this.getReminderTemplate(userId);
+    const businessId = await this.getBusinessIdFromUser(userId);
+    const template = businessId ? await this.getReminderTemplate(businessId) : DEFAULT_CONFIRMATION_TEMPLATE;
     const message = this.applyTemplate(template, data);
     return this.sendMessage(userId, phone, message);
   }
 
-  private async getConfirmationTemplate(userId: string): Promise<string> {
+  private async getBusinessIdFromUser(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { businessId: true },
+    });
+    return user?.businessId ?? null;
+  }
+
+  private async getConfirmationTemplate(businessId: string): Promise<string> {
     try {
       const settings = await this.prisma.siteSettings.findUnique({
-        where: { userId },
+        where: { businessId },
       });
       return settings?.appointmentConfirmationTemplate || DEFAULT_CONFIRMATION_TEMPLATE;
     } catch {
@@ -167,12 +177,12 @@ export class WhatsappService {
     }
   }
 
-  private async getReminderTemplate(userId: string): Promise<string> {
+  private async getReminderTemplate(businessId: string): Promise<string> {
     const defaultTemplate = `Olá {clientName}, este é um lembrete do seu agendamento de {serviceName} amanhã, dia {date} às {time} com {businessName}. Responda SIM para confirmar ou NAO para cancelar.`;
 
     try {
       const settings = await this.prisma.siteSettings.findUnique({
-        where: { userId },
+        where: { businessId },
       });
       return settings?.appointmentReminderTemplate || defaultTemplate;
     } catch {

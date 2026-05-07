@@ -62,14 +62,14 @@ export class IntentProcessorService {
 
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
-      include: { owner: { include: { services: true } } },
+      include: { services: true },
     });
 
     if (!business) {
       return { success: false, message: "Não encontrei esse estabelecimento." };
     }
 
-    const services = business.owner.services;
+    const services = business.services;
     if (services.length === 0) {
       return { success: false, message: "No momento não temos serviços cadastrados." };
     }
@@ -206,7 +206,7 @@ export class IntentProcessorService {
       },
       orderBy: { date: "asc" },
       take: 5,
-      include: { service: true, user: true },
+      include: { service: true, professional: true },
     });
 
     if (appointments.length === 0) {
@@ -214,7 +214,7 @@ export class IntentProcessorService {
     }
 
     const list = appointments
-      .map((a) => `📅 *${a.service?.name ?? "Serviço"}* — ${a.date.toLocaleDateString("pt-BR")} às ${a.startTime} ⏰ (${a.user.name})`)
+      .map((a) => `📅 *${a.service?.name ?? "Serviço"}* — ${a.date.toLocaleDateString("pt-BR")} às ${a.startTime} ⏰ (${a.professional.name})`)
       .join("\n");
 
     return {

@@ -25,13 +25,7 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
         reason: input.reason,
       },
     });
-    return {
-      ...payment,
-      status: payment.status as PaymentStatus,
-      pixCode: payment.pixCode ?? null,
-      reason: payment.reason ?? null,
-      paidAt: payment.paidAt ?? null,
-    };
+    return this.mapPayment(payment);
   }
 
   async createPix(input: {
@@ -47,24 +41,18 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
         status: "PENDING",
       },
     });
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-      pixCode: p.pixCode ?? null,
-      reason: p.reason ?? null,
-      paidAt: p.paidAt ?? null,
-    };
+    return this.mapPayment(p);
   }
 
-  async findManyByUserId(
-    userId: string,
+  async findManyByBusinessId(
+    businessId: string,
     query: FindPaymentsDto = {},
   ): Promise<{ data: PaymentEntity[]; total: number }> {
     const { search, status, startDate, endDate, minAmount, maxAmount, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.PaymentWhereInput = {
-      appointment: { userId },
+      appointment: { businessId },
       AND: [
         search
           ? {
@@ -119,25 +107,13 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
   async findById(id: string): Promise<PaymentEntity | null> {
     const p = await this.prisma.payment.findUnique({ where: { id } });
     if (!p) return null;
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-      pixCode: p.pixCode ?? null,
-      reason: p.reason ?? null,
-      paidAt: p.paidAt ?? null,
-    };
+    return this.mapPayment(p);
   }
 
   async findByAppointmentId(appointmentId: string): Promise<PaymentEntity | null> {
     const p = await this.prisma.payment.findFirst({ where: { appointmentId } });
     if (!p) return null;
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-      pixCode: p.pixCode ?? null,
-      reason: p.reason ?? null,
-      paidAt: p.paidAt ?? null,
-    };
+    return this.mapPayment(p);
   }
 
   async markAsPaid(id: string): Promise<PaymentEntity | null> {
@@ -145,13 +121,7 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
       where: { id },
       data: { status: "PAID", paidAt: new Date() },
     });
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-      pixCode: p.pixCode ?? null,
-      reason: p.reason ?? null,
-      paidAt: p.paidAt ?? null,
-    };
+    return this.mapPayment(p);
   }
 
   async cancel(id: string, reason?: string): Promise<PaymentEntity | null> {
@@ -159,13 +129,7 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
       where: { id },
       data: { status: "CANCELLED", reason },
     });
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-      pixCode: p.pixCode ?? null,
-      reason: p.reason ?? null,
-      paidAt: p.paidAt ?? null,
-    };
+    return this.mapPayment(p);
   }
 
   async updateStatus(id: string, status: PaymentStatus, reason?: string, pixCode?: string): Promise<PaymentEntity | null> {
@@ -175,12 +139,19 @@ export class PaymentsPrismaRepository implements PaymentsRepository {
     if (status === "PAID") data.paidAt = new Date();
 
     const p = await this.prisma.payment.update({ where: { id }, data });
+    return this.mapPayment(p);
+  }
+
+  private mapPayment(p: any): PaymentEntity {
     return {
-      ...p,
+      id: p.id,
+      appointmentId: p.appointmentId,
+      amount: p.amount,
       status: p.status as PaymentStatus,
       pixCode: p.pixCode ?? null,
       reason: p.reason ?? null,
       paidAt: p.paidAt ?? null,
+      createdAt: p.createdAt,
     };
   }
 }

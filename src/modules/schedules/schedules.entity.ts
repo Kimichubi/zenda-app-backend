@@ -1,6 +1,7 @@
 export interface ScheduleEntity {
   id: string;
-  userId: string;
+  businessId: string;
+  professionalId: string;
   weekday: number;
   startTime: string;
   endTime: string;

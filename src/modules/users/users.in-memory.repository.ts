@@ -16,14 +16,16 @@ export class UsersInMemoryRepository implements UsersRepository {
     email: string;
     passwordHash: string;
     phone: string;
-    businessName: string;
-    slug: string;
   }): Promise<UserEntity> {
     const record: UserRecord = {
       id: makeId(),
-      ...input,
-      role: "USER",
-      plan: "ONBOARDING",
+      name: input.name,
+      email: input.email,
+      passwordHash: input.passwordHash,
+      phone: input.phone ?? "",
+      businessId: null,
+      role: "PROFESSIONAL",
+      baseCommission: 0,
       createdAt: new Date(),
     };
     this.db.users.push(record);
@@ -40,18 +42,23 @@ export class UsersInMemoryRepository implements UsersRepository {
     return (user as any as UserEntity) || null;
   }
 
-  async findBySlug(slug: string): Promise<UserEntity | null> {
-    const user = this.db.users.find((u) => u.slug === slug);
-    return (user as any as UserEntity) || null;
-  }
-
   async findAll(): Promise<UserEntity[]> {
     return this.db.users as any as UserEntity[];
   }
 
+  async findByBusinessId(businessId: string): Promise<UserEntity[]> {
+    return this.db.users.filter((u) => u.businessId === businessId) as any as UserEntity[];
+  }
+
   async update(
     id: string,
-    input: { name?: string; phone?: string; businessName?: string; slug?: string; role?: any; plan?: any },
+    input: {
+      name?: string;
+      phone?: string;
+      businessId?: string | null;
+      role?: string;
+      baseCommission?: number;
+    },
   ): Promise<UserEntity | null> {
     const index = this.db.users.findIndex((u) => u.id === id);
     if (index === -1) return null;

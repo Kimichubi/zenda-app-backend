@@ -11,11 +11,11 @@ export class ClientsService {
   constructor(private readonly clientsRepository: ClientsRepository) {}
 
   async findAll(
-    userId: string,
+    businessId: string,
     dto: FindClientsDto = {},
   ): Promise<PaginatedResponse<ClientEntity>> {
     const { page = 1, limit = 10 } = dto;
-    const result = await this.clientsRepository.findManyByUserId(userId, dto);
+    const result = await this.clientsRepository.findManyByBusinessId(businessId, dto);
 
     return {
       data: result.data,
@@ -25,25 +25,25 @@ export class ClientsService {
     };
   }
 
-  async create(userId: string, dto: CreateClientDto) {
+  async create(businessId: string, dto: CreateClientDto) {
     if (dto.email) {
-      const existing = await this.clientsRepository.findByEmailAndUserId(
+      const existing = await this.clientsRepository.findByEmailAndBusinessId(
         dto.email,
-        userId,
+        businessId,
       );
       if (existing) {
         throw new ConflictException("Client email already exists");
       }
     }
 
-    return this.clientsRepository.create(userId, dto);
+    return this.clientsRepository.create(businessId, dto);
   }
 
-  update(userId: string, id: string, dto: UpdateClientDto) {
-    return this.clientsRepository.update(id, userId, dto);
+  update(businessId: string, id: string, dto: UpdateClientDto) {
+    return this.clientsRepository.update(id, businessId, dto);
   }
 
-  remove(userId: string, id: string) {
-    return this.clientsRepository.delete(id, userId);
+  remove(businessId: string, id: string) {
+    return this.clientsRepository.delete(id, businessId);
   }
 }

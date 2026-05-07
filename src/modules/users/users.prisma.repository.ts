@@ -12,14 +12,14 @@ export class UsersPrismaRepository implements UsersRepository {
     email: string;
     passwordHash: string;
     phone: string;
-    businessName: string;
-    slug: string;
   }): Promise<UserEntity> {
     const user = await this.prisma.user.create({
       data: {
-        ...input,
-        role: "USER",
-        plan: "ONBOARDING",
+        name: input.name,
+        email: input.email,
+        passwordHash: input.passwordHash,
+        phone: input.phone ?? "",
+        role: "PROFESSIONAL",
       },
     });
     return user as UserEntity;
@@ -35,25 +35,35 @@ export class UsersPrismaRepository implements UsersRepository {
     return user as UserEntity | null;
   }
 
-  async findBySlug(slug: string): Promise<UserEntity | null> {
-    const user = await this.prisma.user.findUnique({ where: { slug } });
-    return user as UserEntity | null;
-  }
-
   async findAll(): Promise<UserEntity[]> {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: "desc" },
+      include: { business: { select: { id: true, name: true, slug: true, plan: true, status: true } } },
+    });
+    return users as UserEntity[];
+  }
+
+  async findByBusinessId(businessId: string): Promise<UserEntity[]> {
+    const users = await this.prisma.user.findMany({
+      where: { businessId },
+      orderBy: { name: "asc" },
     });
     return users as UserEntity[];
   }
 
   async update(
     id: string,
-    input: { name?: string; phone?: string; businessName?: string; slug?: string; role?: any; plan?: any },
+    input: {
+      name?: string;
+      phone?: string;
+      businessId?: string | null;
+      role?: string;
+      baseCommission?: number;
+    },
   ): Promise<UserEntity | null> {
     const user = await this.prisma.user.update({
       where: { id },
-      data: input,
+      data: input as any,
     });
     return user as UserEntity | null;
   }

@@ -22,7 +22,6 @@ async function hashPassword(password: string): Promise<string> {
 async function main() {
   console.log('🌱 Starting seed...');
 
-  // Clean existing data (order matters due to FK constraints)
   console.log('🧹 Cleaning existing data...');
   await prisma.chatLog.deleteMany();
   await prisma.chatSession.deleteMany();
@@ -47,39 +46,33 @@ async function main() {
   await prisma.client.deleteMany();
   await prisma.business.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.platformAdmin.deleteMany();
   console.log('✅ Data cleaned.');
 
-  // ── Users ──
   const passwordHash = await hashPassword('password123');
 
-  console.log('👤 Creating users...');
-
-  const adminUser = await prisma.user.create({
+  // ── Platform Admin ──
+  console.log('🛡️  Creating platform admin...');
+  const platformAdmin = await prisma.platformAdmin.create({
     data: {
-      name: 'Admin User',
-      email: 'admin@zenda.com',
+      name: 'Gabriel (Admin)',
+      email: 'gabriel@zenda.com',
       passwordHash,
-      phone: '+5511999999999',
-      role: 'ADMIN',
-      plan: 'PRO',
-      slug: 'admin-user',
     },
   });
+  console.log('✅ Platform admin created.');
+
+  // ── Users ──
+  console.log('👤 Creating users...');
 
   const businessOwner = await prisma.user.create({
     data: {
-      name: 'João Silva',
+      name: 'Joao Silva',
       email: 'joao@barbearia.com',
       passwordHash,
       phone: '+5511988888888',
-      role: 'USER',
-      plan: 'PRO',
-      businessName: 'Barbearia do João',
-      slug: 'barbearia-do-joao',
-      pixKeyType: 'CPF',
-      pixKey: '12345678900',
-      pixName: 'João Silva',
-      pixCity: 'São Paulo',
+      role: 'OWNER',
+      baseCommission: 50,
     },
   });
 
@@ -90,9 +83,7 @@ async function main() {
       passwordHash,
       phone: '+5511977777777',
       role: 'PROFESSIONAL',
-      plan: 'FREE',
       baseCommission: 30,
-      slug: 'maria-oliveira',
     },
   });
 
@@ -103,9 +94,7 @@ async function main() {
       passwordHash,
       phone: '+5511966666666',
       role: 'PROFESSIONAL',
-      plan: 'FREE',
       baseCommission: 25,
-      slug: 'carlos-santos',
     },
   });
 
@@ -116,75 +105,75 @@ async function main() {
       passwordHash,
       phone: '+5511955555555',
       role: 'MANAGER',
-      plan: 'FREE',
-      slug: 'ana-costa',
     },
   });
 
-  console.log(`✅ Created ${5} users.`);
+  // Onboarding user (no business yet)
+  await prisma.user.create({
+    data: {
+      name: 'Onboarding User',
+      email: 'onboarding@zenda.com',
+      passwordHash,
+      phone: '+5511944444444',
+      role: 'PROFESSIONAL',
+    },
+  });
+
+  console.log('✅ Users created.');
 
   // ── Business ──
   console.log('🏢 Creating business...');
 
   const business = await prisma.business.create({
     data: {
-      name: 'Barbearia do João',
+      name: 'Barbearia do Joao',
       slug: 'barbearia-do-joao',
-      ownerId: businessOwner.id,
+      plan: 'PRO',
+      status: 'ACTIVE',
       pixKey: '12345678900',
-      staff: {
-        connect: [
-          { id: professional1.id },
-          { id: professional2.id },
-          { id: manager.id },
-        ],
-      },
     },
   });
 
-  // Link professionals to business
+  // Link all staff to business
   await prisma.user.updateMany({
-    where: { id: { in: [professional1.id, professional2.id, manager.id] } },
+    where: { id: { in: [businessOwner.id, professional1.id, professional2.id, manager.id] } },
     data: { businessId: business.id },
   });
 
-  console.log('✅ Business created.');
+  console.log('✅ Business created and users linked.');
 
   // ── SiteSettings ──
-  console.log('⚙️ Creating site settings...');
+  console.log('⚙️  Creating site settings...');
 
   await prisma.siteSettings.create({
     data: {
-      userId: businessOwner.id,
+      businessId: business.id,
       themeColor: '#1a1a2e',
-      heroTitle: 'Barbearia do João - Estilo e Tradição',
-      heroSubtitle: 'O melhor corte da região há mais de 10 anos',
-      aboutText: 'Somos especialistas em cortes masculinos e barba. Venha conhecer nosso espaço.',
+      heroTitle: 'Barbearia do Joao - Estilo e Tradicao',
+      heroSubtitle: 'O melhor corte da regiao',
+      aboutText: 'Somos especialistas em cortes masculinos e barba.',
       instagramUrl: 'https://instagram.com/barbeariadojoao',
       whatsappUrl: 'https://wa.me/5511988888888',
-      city: 'São Paulo',
+      city: 'Sao Paulo',
       state: 'SP',
-      metaTitle: 'Barbearia do João - Agende Online',
-      metaDescription: 'Agende seu corte na melhor barbearia de São Paulo.',
-      galleryPhotos: [
-        'https://example.com/photo1.jpg',
-        'https://example.com/photo2.jpg',
-      ],
+      metaTitle: 'Barbearia do Joao - Agende Online',
+      metaDescription: 'Agende seu corte na melhor barbearia de Sao Paulo.',
+      galleryPhotos: [],
     },
   });
 
   console.log('✅ Site settings created.');
 
   // ── Services ──
-  console.log('✂️ Creating services...');
+  console.log('✂️  Creating services...');
 
   const serviceData = [
-    { name: 'Corte de Cabelo', duration: 30, price: 45, userId: professional1.id },
-    { name: 'Barba', duration: 20, price: 30, userId: professional1.id },
-    { name: 'Corte + Barba', duration: 50, price: 65, userId: professional1.id },
-    { name: 'Corte Degradê', duration: 40, price: 55, userId: professional2.id },
-    { name: 'Barba Completa', duration: 30, price: 35, userId: professional2.id },
-    { name: 'Pigmentação', duration: 45, price: 80, userId: professional2.id },
+    { name: 'Corte de Cabelo', duration: 30, price: 45 },
+    { name: 'Barba', duration: 20, price: 30 },
+    { name: 'Corte + Barba', duration: 50, price: 65 },
+    { name: 'Corte Degrade', duration: 40, price: 55 },
+    { name: 'Barba Completa', duration: 30, price: 35 },
+    { name: 'Pigmentacao', duration: 45, price: 80 },
   ];
 
   const services = await Promise.all(
@@ -194,7 +183,7 @@ async function main() {
           name: s.name,
           duration: s.duration,
           price: s.price,
-          userId: s.userId,
+          businessId: business.id,
         },
       }),
     ),
@@ -206,24 +195,25 @@ async function main() {
   console.log('📅 Creating schedules...');
 
   const scheduleData = [
-    { userId: professional1.id, weekday: 1, startTime: '09:00', endTime: '18:00' },
-    { userId: professional1.id, weekday: 2, startTime: '09:00', endTime: '18:00' },
-    { userId: professional1.id, weekday: 3, startTime: '09:00', endTime: '18:00' },
-    { userId: professional1.id, weekday: 4, startTime: '09:00', endTime: '18:00' },
-    { userId: professional1.id, weekday: 5, startTime: '09:00', endTime: '18:00' },
-    { userId: professional2.id, weekday: 1, startTime: '10:00', endTime: '19:00' },
-    { userId: professional2.id, weekday: 2, startTime: '10:00', endTime: '19:00' },
-    { userId: professional2.id, weekday: 3, startTime: '10:00', endTime: '19:00' },
-    { userId: professional2.id, weekday: 4, startTime: '10:00', endTime: '19:00' },
-    { userId: professional2.id, weekday: 5, startTime: '10:00', endTime: '19:00' },
-    { userId: professional2.id, weekday: 6, startTime: '09:00', endTime: '14:00' },
+    { professionalId: professional1.id, weekday: 1, startTime: '09:00', endTime: '18:00' },
+    { professionalId: professional1.id, weekday: 2, startTime: '09:00', endTime: '18:00' },
+    { professionalId: professional1.id, weekday: 3, startTime: '09:00', endTime: '18:00' },
+    { professionalId: professional1.id, weekday: 4, startTime: '09:00', endTime: '18:00' },
+    { professionalId: professional1.id, weekday: 5, startTime: '09:00', endTime: '18:00' },
+    { professionalId: professional2.id, weekday: 1, startTime: '10:00', endTime: '19:00' },
+    { professionalId: professional2.id, weekday: 2, startTime: '10:00', endTime: '19:00' },
+    { professionalId: professional2.id, weekday: 3, startTime: '10:00', endTime: '19:00' },
+    { professionalId: professional2.id, weekday: 4, startTime: '10:00', endTime: '19:00' },
+    { professionalId: professional2.id, weekday: 5, startTime: '10:00', endTime: '19:00' },
+    { professionalId: professional2.id, weekday: 6, startTime: '09:00', endTime: '14:00' },
   ];
 
   await Promise.all(
     scheduleData.map((s) =>
       prisma.schedule.create({
         data: {
-          userId: s.userId,
+          businessId: business.id,
+          professionalId: s.professionalId,
           weekday: s.weekday,
           startTime: s.startTime,
           endTime: s.endTime,
@@ -244,7 +234,7 @@ async function main() {
         name: 'Pedro Almeida',
         phone: '+5511911111111',
         email: 'pedro@email.com',
-        userId: businessOwner.id,
+        businessId: business.id,
         notes: 'Cliente VIP',
         birthday: new Date('1990-05-15'),
         tags: ['VIP', 'Frequente'],
@@ -255,7 +245,7 @@ async function main() {
         name: 'Lucas Ferreira',
         phone: '+5511922222222',
         email: 'lucas@email.com',
-        userId: businessOwner.id,
+        businessId: business.id,
         birthday: new Date('1985-08-22'),
         tags: ['Novo'],
       },
@@ -264,16 +254,16 @@ async function main() {
       data: {
         name: 'Rafael Lima',
         phone: '+5511933333333',
-        userId: businessOwner.id,
-        notes: 'Prefere corte degradê',
+        businessId: business.id,
+        notes: 'Prefere corte degrade',
       },
     }),
     prisma.client.create({
       data: {
         name: 'Gabriel Souza',
-        phone: '+5511944444444',
+        phone: '+5511999999999',
         email: 'gabriel@email.com',
-        userId: businessOwner.id,
+        businessId: business.id,
         pointsBalance: 150,
       },
     }),
@@ -281,7 +271,7 @@ async function main() {
       data: {
         name: 'Thiago Rocha',
         phone: '+5511955550000',
-        userId: businessOwner.id,
+        businessId: business.id,
       },
     }),
   ]);
@@ -301,11 +291,11 @@ async function main() {
   nextWeek.setHours(0, 0, 0, 0);
 
   const appointments = await Promise.all([
-    // Completed appointment
     prisma.appointment.create({
       data: {
+        businessId: business.id,
+        professionalId: professional1.id,
         clientId: clients[0].id,
-        userId: professional1.id,
         serviceId: services[0].id,
         date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
         startTime: '14:00',
@@ -315,11 +305,11 @@ async function main() {
         notes: 'Corte regular',
       },
     }),
-    // Today's appointment
     prisma.appointment.create({
       data: {
+        businessId: business.id,
+        professionalId: professional1.id,
         clientId: clients[1].id,
-        userId: professional1.id,
         serviceId: services[2].id,
         date: now,
         startTime: '16:00',
@@ -328,11 +318,11 @@ async function main() {
         status: 'CONFIRMED',
       },
     }),
-    // Tomorrow's appointment
     prisma.appointment.create({
       data: {
+        businessId: business.id,
+        professionalId: professional2.id,
         clientId: clients[2].id,
-        userId: professional2.id,
         serviceId: services[3].id,
         date: tomorrow,
         startTime: '10:00',
@@ -341,11 +331,11 @@ async function main() {
         status: 'SCHEDULED',
       },
     }),
-    // Next week appointment
     prisma.appointment.create({
       data: {
+        businessId: business.id,
+        professionalId: professional2.id,
         clientId: clients[3].id,
-        userId: professional2.id,
         serviceId: services[5].id,
         date: nextWeek,
         startTime: '15:00',
@@ -354,11 +344,11 @@ async function main() {
         status: 'SCHEDULED',
       },
     }),
-    // Cancelled appointment
     prisma.appointment.create({
       data: {
+        businessId: business.id,
+        professionalId: professional1.id,
         clientId: clients[4].id,
-        userId: professional1.id,
         serviceId: services[1].id,
         date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
         startTime: '11:00',
@@ -457,7 +447,7 @@ async function main() {
   // ── ClientCredit ──
   console.log('💎 Creating client credit...');
 
-  const clientCredit = await prisma.clientCredit.create({
+  await prisma.clientCredit.create({
     data: {
       clientId: clients[3].id,
       balance: 50,
@@ -465,7 +455,7 @@ async function main() {
         create: {
           amount: 50,
           type: 'CREDIT',
-          description: 'Crédito de fidelidade - 500 pontos resgatados',
+          description: 'Credito de fidelidade - 500 pontos resgatados',
         },
       },
     },
@@ -476,57 +466,19 @@ async function main() {
   // ── Categories ──
   console.log('📦 Creating categories...');
 
-  const categories = await Promise.all([
-    prisma.category.create({
-      data: { businessId: business.id, name: 'Produtos Capilares' },
-    }),
-    prisma.category.create({
-      data: { businessId: business.id, name: 'Barba' },
-    }),
-    prisma.category.create({
-      data: { businessId: business.id, name: 'Acessórios' },
-    }),
-  ]);
+  await prisma.category.create({ data: { businessId: business.id, name: 'Produtos Capilares' } });
+  await prisma.category.create({ data: { businessId: business.id, name: 'Barba' } });
+  await prisma.category.create({ data: { businessId: business.id, name: 'Acessorios' } });
 
-  console.log(`✅ Created ${categories.length} categories.`);
+  console.log('✅ Categories created.');
 
   // ── Products ──
   console.log('🧴 Creating products...');
 
   const products = await Promise.all([
-    prisma.product.create({
-      data: {
-        businessId: business.id,
-        name: 'Pomada Modeladora',
-        sku: 'POM-001',
-        price: 45,
-        costPrice: 20,
-        stock: 15,
-        minStock: 5,
-      },
-    }),
-    prisma.product.create({
-      data: {
-        businessId: business.id,
-        name: 'Óleo para Barba',
-        sku: 'OLEO-001',
-        price: 35,
-        costPrice: 15,
-        stock: 20,
-        minStock: 5,
-      },
-    }),
-    prisma.product.create({
-      data: {
-        businessId: business.id,
-        name: 'Shampoo Especial',
-        sku: 'SHAM-001',
-        price: 55,
-        costPrice: 25,
-        stock: 10,
-        minStock: 3,
-      },
-    }),
+    prisma.product.create({ data: { businessId: business.id, name: 'Pomada Modeladora', sku: 'POM-001', price: 45, costPrice: 20, stock: 15, minStock: 5 } }),
+    prisma.product.create({ data: { businessId: business.id, name: 'Oleo para Barba', sku: 'OLEO-001', price: 35, costPrice: 15, stock: 20, minStock: 5 } }),
+    prisma.product.create({ data: { businessId: business.id, name: 'Shampoo Especial', sku: 'SHAM-001', price: 55, costPrice: 25, stock: 10, minStock: 3 } }),
   ]);
 
   console.log(`✅ Created ${products.length} products.`);
@@ -534,28 +486,13 @@ async function main() {
   // ── Inventory Movements ──
   console.log('📊 Creating inventory movements...');
 
-  await prisma.inventoryMovement.create({
-    data: {
-      productId: products[0].id,
-      quantity: 20,
-      type: 'IN',
-      reason: 'Compra inicial',
-    },
-  });
-
-  await prisma.inventoryMovement.create({
-    data: {
-      productId: products[0].id,
-      quantity: 5,
-      type: 'OUT',
-      reason: 'Venda',
-    },
-  });
+  await prisma.inventoryMovement.create({ data: { productId: products[0].id, quantity: 20, type: 'IN', reason: 'Compra inicial' } });
+  await prisma.inventoryMovement.create({ data: { productId: products[0].id, quantity: 5, type: 'OUT', reason: 'Venda' } });
 
   console.log('✅ Inventory movements created.');
 
   // ── Sales ──
-  console.log('🛒 Creating sales...');
+  console.log('🛒  Creating sales...');
 
   const sale = await prisma.sale.create({
     data: {
@@ -577,22 +514,11 @@ async function main() {
     },
   });
 
-  console.log('✅ Sales created.');
-
-  // ── Sale Commission ──
-  console.log('💰 Creating sale commission...');
-
   await prisma.commission.create({
-    data: {
-      userId: professional1.id,
-      saleId: sale.id,
-      amount: 24,
-      percentage: 30,
-      status: 'PENDING',
-    },
+    data: { userId: professional1.id, saleId: sale.id, amount: 24, percentage: 30, status: 'PENDING' },
   });
 
-  console.log('✅ Sale commission created.');
+  console.log('✅ Sales created.');
 
   // ── Client Photos ──
   console.log('📸 Creating client photos...');
@@ -604,7 +530,7 @@ async function main() {
       type: 'HAIRCUT',
       url: 'https://example.com/haircut1.jpg',
       thumbnailUrl: 'https://example.com/haircut1-thumb.jpg',
-      description: 'Corte degradê na máquina',
+      description: 'Corte degrade na maquina',
     },
   });
 
@@ -621,15 +547,13 @@ async function main() {
       state: 'IDLE',
       context: [],
       logs: {
-        create: [
-          {
-            incoming: 'Olá, gostaria de agendar um corte',
-            outgoing: 'Claro! Temos horários disponíveis amanhã às 10h e 14h. Qual prefere?',
-            intent: 'BOOK_APPOINTMENT',
-            confidence: 0.95,
-            metadata: {},
-          },
-        ],
+        create: [{
+          incoming: 'Ola, gostaria de agendar um corte',
+          outgoing: 'Claro! Temos horarios disponiveis amanha as 10h e 14h.',
+          intent: 'BOOK_APPOINTMENT',
+          confidence: 0.95,
+          metadata: {},
+        }],
       },
     },
   });
@@ -638,9 +562,10 @@ async function main() {
 
   console.log('\n🎉 Seed completed successfully!');
   console.log('\n📝 Test credentials:');
-  console.log('   Email: admin@zenda.com');
-  console.log('   Email: joao@barbearia.com');
-  console.log('   Email: maria@barbearia.com');
+  console.log('   Platform Admin: gabriel@zenda.com');
+  console.log('   Business Owner: joao@barbearia.com');
+  console.log('   Professional: maria@barbearia.com');
+  console.log('   Onboarding: onboarding@zenda.com');
   console.log('   Password: password123');
 }
 

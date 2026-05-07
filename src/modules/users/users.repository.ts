@@ -6,16 +6,20 @@ export abstract class UsersRepository {
     email: string;
     passwordHash: string;
     phone: string;
-    businessName: string;
-    slug: string;
   }): Promise<UserEntity>;
 
   abstract findByEmail(email: string): Promise<UserEntity | null>;
   abstract findById(id: string): Promise<UserEntity | null>;
-  abstract findBySlug(slug: string): Promise<UserEntity | null>;
   abstract findAll(): Promise<UserEntity[]>;
+  abstract findByBusinessId(businessId: string): Promise<UserEntity[]>;
   abstract update(
     id: string,
-    input: { name?: string; phone?: string; businessName?: string; slug?: string; role?: any; plan?: any },
+    input: {
+      name?: string;
+      phone?: string;
+      businessId?: string | null;
+      role?: string;
+      baseCommission?: number;
+    },
   ): Promise<UserEntity | null>;
 }

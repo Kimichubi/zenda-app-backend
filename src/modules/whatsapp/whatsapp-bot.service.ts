@@ -152,7 +152,7 @@ export class WhatsappBotService {
       const client = await this.findClientByPhone(cleanPhone);
       if (client) {
         clientId = client.id;
-        businessId = client.user.businessId ?? undefined;
+        businessId = client.businessId ?? undefined;
         await this.chatSessionService.updateState(session.id, session.state, clientId, businessId);
       }
     }
@@ -184,9 +184,16 @@ export class WhatsappBotService {
     }
 
     // 4.5. Buscar prompt customizado do dono do negócio e config de IA
-    const ownerId = businessData ? (await this.prisma.business.findUnique({ where: { id: businessId! }, select: { ownerId: true } }))?.ownerId : undefined;
-    const customPrompt = await this.getCustomPrompt(ownerId);
-    const aiConfig = await this.getUserAiConfig(ownerId);
+    let ownerId: string | undefined;
+    if (businessId) {
+      const businessWithOwner = await this.prisma.business.findUnique({
+        where: { id: businessId },
+        include: { staff: { where: { role: 'OWNER' }, select: { id: true } } },
+      });
+      ownerId = businessWithOwner?.staff[0]?.id;
+    }
+    const customPrompt = await this.getCustomPrompt(businessId);
+    const aiConfig = await this.getUserAiConfig(businessId);
 
     // 5. Montar mensagens para a IA
     const contextMessages = this.chatSessionService.getContextMessages(session);
@@ -279,7 +286,7 @@ export class WhatsappBotService {
           contains: phone.slice(-11), // últimos 11 dígitos
         },
       },
-      include: { user: true },
+      include: { business: true },
       take: 1,
     });
     return clients[0] ?? null;
@@ -301,7 +308,7 @@ export class WhatsappBotService {
       },
       orderBy: { date: "asc" },
       take: 10,
-      include: { service: true, user: true },
+      include: { service: true, professional: true },
     });
 
     if (appointments.length === 0) {
@@ -309,7 +316,7 @@ export class WhatsappBotService {
     }
 
     const list = appointments
-      .map((a) => `• ${a.service?.name ?? "Serviço"} — ${a.date.toLocaleDateString("pt-BR")} às ${a.startTime} (${a.user.name})`)
+      .map((a) => `• ${a.service?.name ?? "Serviço"} — ${a.date.toLocaleDateString("pt-BR")} às ${a.startTime} (${a.professional.name})`)
       .join("\n");
 
     return `AGENDAMENTOS DO CLIENTE:\n${list}`;
@@ -318,19 +325,12 @@ export class WhatsappBotService {
   private async getBusinessData(businessId: string) {
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
-      include: {
-        owner: {
-          include: {
-            services: true,
-            schedules: true,
-          },
-        },
-      },
+      include: { services: true, schedules: true },
     });
 
     if (!business) return null;
 
-    const servicesText = business.owner.services
+    const servicesText = business.services
       .map((s) => `- ${s.name}: R$${s.price.toFixed(2)} (${s.duration}min) [id:${s.id}]`)
       .join("\n");
 
@@ -341,23 +341,23 @@ export class WhatsappBotService {
     };
   }
 
-  private async getCustomPrompt(userId: string | undefined) {
-    if (!userId) return null;
+  private async getCustomPrompt(businessId: string | undefined) {
+    if (!businessId) return null;
     const settings = await this.prisma.siteSettings.findUnique({
-      where: { userId },
+      where: { businessId },
     });
     if (!settings?.botEnabled) return null;
     return settings.botPrompt ?? null;
   }
 
-  private async getUserAiConfig(userId: string | undefined): Promise<{
+  private async getUserAiConfig(businessId: string | undefined): Promise<{
     provider: string;
     openrouter?: AiProviderConfig;
     gemini?: AiProviderConfig;
   } | null> {
-    if (!userId) return null;
+    if (!businessId) return null;
     const settings = await this.prisma.siteSettings.findUnique({
-      where: { userId },
+      where: { businessId },
     });
     if (!settings) return null;
 

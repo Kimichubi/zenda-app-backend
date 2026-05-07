@@ -16,29 +16,18 @@ export class UsersService {
       name: user.name,
       email: user.email,
       phone: user.phone,
-      businessName: user.businessName,
-      slug: user.slug,
       role: user.role,
-      plan: user.plan,
-      pixKeyType: user.pixKeyType,
-      pixKey: user.pixKey,
-      pixName: user.pixName,
-      pixCity: user.pixCity,
+      businessId: user.businessId,
+      baseCommission: user.baseCommission,
       createdAt: user.createdAt,
     };
   }
 
   async updateProfile(
     userId: string,
-    input: { 
-      name?: string; 
-      phone?: string; 
-      businessName?: string; 
-      slug?: string;
-      pixKeyType?: string;
-      pixKey?: string;
-      pixName?: string;
-      pixCity?: string;
+    input: {
+      name?: string;
+      phone?: string;
     },
   ) {
     const user = await this.usersRepository.update(userId, input);
@@ -50,14 +39,9 @@ export class UsersService {
       name: user.name,
       email: user.email,
       phone: user.phone,
-      businessName: user.businessName,
-      slug: user.slug,
       role: user.role,
-      plan: user.plan,
-      pixKeyType: user.pixKeyType,
-      pixKey: user.pixKey,
-      pixName: user.pixName,
-      pixCity: user.pixCity,
+      businessId: user.businessId,
+      baseCommission: user.baseCommission,
       createdAt: user.createdAt,
     };
   }

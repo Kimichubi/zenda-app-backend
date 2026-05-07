@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Patch, Req, UseGuards, Logger } from "@nestjs/common";
+import { Body, Controller, Get, Post, Patch, Req, UseGuards, Logger, UnauthorizedException } from "@nestjs/common";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { AuthService } from "./auth.service";
@@ -6,6 +6,7 @@ import { UsersRepository } from "../users/users.repository";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { LoginDto } from "./dto/login.dto";
 import { SignupDto } from "./dto/signup.dto";
+import * as bcrypt from "bcrypt";
 
 @Controller("auth")
 export class AuthController {
@@ -26,15 +27,13 @@ export class AuthController {
   async login(@Body() body: any) {
     const user = await this.authService.validateCredentials(body.email, body.password);
 
-    // Se "remember me" ativo, pula 2FA e vai direto
     if (body.rememberMe) {
       const response = this.authService.buildAuthResponse(
-        user.id, user.email, user.name, user.role, user.plan, (user as any).businessId, true,
+        user.id, user.email, user.name, user.role, (user as any).businessId, true,
       );
       return response;
     }
 
-    // Generate and store verification code
     const code = this.generateCode();
     await this.prisma.verificationCode.create({
       data: {
@@ -49,15 +48,33 @@ export class AuthController {
     return {
       requires2FA: true,
       email: this.maskEmail(user.email),
-      message: "Um código de verificação foi enviado para seu email.",
+      message: "Um codigo de verificacao foi enviado para seu email.",
     };
+  }
+
+  @Post("admin/login")
+  async adminLogin(@Body() body: { email: string; password: string }) {
+    const admin = await this.prisma.platformAdmin.findUnique({
+      where: { email: body.email },
+    });
+
+    if (!admin) {
+      throw new UnauthorizedException("Credenciais invalidas");
+    }
+
+    const isPasswordValid = await bcrypt.compare(body.password, admin.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException("Credenciais invalidas");
+    }
+
+    return this.authService.buildAdminAuthResponse(admin.id, admin.email, admin.name);
   }
 
   @Post("verify-login-code")
   async verifyLoginCode(@Body() body: { email: string; code: string }) {
     const user = await this.usersRepository.findByEmail(body.email);
     if (!user) {
-      return { valid: false, message: "Email não encontrado." };
+      return { valid: false, message: "Email nao encontrado." };
     }
 
     const verification = await this.prisma.verificationCode.findFirst({
@@ -71,64 +88,72 @@ export class AuthController {
     });
 
     if (!verification) {
-      return { valid: false, message: "Código inválido ou expirado." };
+      return { valid: false, message: "Codigo invalido ou expirado." };
     }
 
-    // Mark as used
     await this.prisma.verificationCode.update({
       where: { id: verification.id },
       data: { used: true },
     });
 
     return this.authService.buildAuthResponse(
-      user.id, user.email, user.name, user.role, user.plan, (user as any).businessId,
+      user.id, user.email, user.name, user.role, (user as any).businessId,
     );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get("validate")
-  async validate(@Req() req: Request & { user: { id: string } }) {
+  async validate(@Req() req: Request & { user: { id: string; email: string } }) {
     const user = await this.usersRepository.findById(req.user.id);
+    if (user) {
+      const hasBusiness = !!user.businessId;
+      let businessStatus: string | null = null;
+      let businessName: string | null = null;
 
-    // Check business status if user has a business
-    let businessStatus: string | null = null;
-    let needsOnboarding = user?.plan === "ONBOARDING";
-    let businessName: string | null = null;
-
-    if ((user as any)?.businessId) {
-      const business = await this.prisma.business.findUnique({
-        where: { id: (user as any).businessId },
-        select: { status: true, name: true },
-      });
-      if (business) {
-        businessStatus = business.status;
-        businessName = business.name;
-        // If business is pending or suspended, block access
-        if (business.status === "PENDING") {
-          needsOnboarding = true;
-        }
-        if (business.status === "SUSPENDED") {
-          return {
-            valid: true,
-            userId: req.user.id,
-            plan: user?.plan ?? "ONBOARDING",
-            needsOnboarding: true,
-            suspended: true,
-            businessName,
-          };
+      if (hasBusiness) {
+        const business = await this.prisma.business.findUnique({
+          where: { id: user.businessId! },
+          select: { status: true, name: true },
+        });
+        if (business) {
+          businessStatus = business.status;
+          businessName = business.name;
         }
       }
+
+      const needsOnboarding = !hasBusiness || businessStatus === "PENDING";
+      const suspended = businessStatus === "SUSPENDED";
+
+      return {
+        valid: true,
+        userId: req.user.id,
+        businessId: user.businessId ?? null,
+        businessName,
+        businessStatus,
+        role: user.role,
+        needsOnboarding,
+        suspended,
+      };
     }
 
-    return {
-      valid: true,
-      userId: req.user.id,
-      plan: user?.plan ?? "ONBOARDING",
-      businessId: (user as any)?.businessId ?? null,
-      businessName,
-      needsOnboarding,
-      businessStatus,
-    };
+    const admin = await this.prisma.platformAdmin.findUnique({
+      where: { email: req.user.email },
+    });
+
+    if (admin) {
+      return {
+        valid: true,
+        userId: admin.id,
+        businessId: null,
+        businessName: "Zenda Platform",
+        businessStatus: null,
+        role: "PLATFORM_ADMIN",
+        needsOnboarding: false,
+        suspended: false,
+      };
+    }
+
+    return { valid: false };
   }
 
   @UseGuards(JwtAuthGuard)

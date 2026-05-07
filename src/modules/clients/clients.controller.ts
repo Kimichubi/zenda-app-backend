@@ -8,43 +8,52 @@ import {
   Post,
   Query,
   UseGuards,
+  BadRequestException,
+  Request,
 } from "@nestjs/common";
-import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { BusinessGuard } from "../../common/guards/business.guard";
 import { ClientsService } from "./clients.service";
 import { CreateClientDto } from "./dto/create-client.dto";
 import { UpdateClientDto } from "./dto/update-client.dto";
 import { FindClientsDto } from "./dto/find-clients.dto";
 
+function requireBusinessId(req: any): string {
+  if (!req.user?.businessId) {
+    throw new BadRequestException("Nenhum negocio associado. Complete o onboarding.");
+  }
+  return req.user.businessId;
+}
+
 @Controller("clients")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, BusinessGuard)
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Get()
   findAll(
-    @CurrentUser() user: { id: string },
+    @Request() req,
     @Query() dto: FindClientsDto,
   ) {
-    return this.clientsService.findAll(user.id, dto);
+    return this.clientsService.findAll(requireBusinessId(req), dto);
   }
 
   @Post()
-  create(@CurrentUser() user: { id: string }, @Body() dto: CreateClientDto) {
-    return this.clientsService.create(user.id, dto);
+  create(@Request() req, @Body() dto: CreateClientDto) {
+    return this.clientsService.create(requireBusinessId(req), dto);
   }
 
   @Patch(":id")
   update(
-    @CurrentUser() user: { id: string },
+    @Request() req,
     @Param("id") id: string,
     @Body() dto: UpdateClientDto,
   ) {
-    return this.clientsService.update(user.id, id, dto);
+    return this.clientsService.update(requireBusinessId(req), id, dto);
   }
 
   @Delete(":id")
-  remove(@CurrentUser() user: { id: string }, @Param("id") id: string) {
-    return this.clientsService.remove(user.id, id);
+  remove(@Request() req, @Param("id") id: string) {
+    return this.clientsService.remove(requireBusinessId(req), id);
   }
 }

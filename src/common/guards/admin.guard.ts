@@ -1,22 +1,24 @@
 import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from "@nestjs/common";
-import { UsersRepository } from "../../modules/users/users.repository";
+import { PrismaService } from "../../infrastructure/database/prisma.service";
 
 @Injectable()
 export class AdminGuard implements CanActivate {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.id) {
-      return false;
+    if (!user || !user.email) {
+      throw new ForbiddenException("Acesso restrito ao administrador da plataforma");
     }
 
-    const userEntity = await this.usersRepository.findById(user.id);
-    
-    if (!userEntity || userEntity.role !== "ADMIN") {
-      throw new ForbiddenException("Acesso restrito ao administrador");
+    const admin = await this.prisma.platformAdmin.findUnique({
+      where: { email: user.email },
+    });
+
+    if (!admin) {
+      throw new ForbiddenException("Acesso restrito ao administrador da plataforma");
     }
 
     return true;

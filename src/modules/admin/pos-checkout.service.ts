@@ -17,7 +17,7 @@ export class PosCheckoutService {
   ) {
     const appointment = await this.prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { client: true, user: true, service: true, payment: true },
+      include: { client: true, professional: true, business: true, service: true, payment: true },
     });
 
     if (!appointment) throw new NotFoundException("Agendamento nao encontrado");
@@ -60,28 +60,28 @@ export class PosCheckoutService {
     // Criar venda
     const sale = await this.prisma.sale.create({
       data: {
-        businessId: appointment.user.businessId ?? "",
-        sellerId: appointment.userId,
+        businessId: appointment.businessId,
+        sellerId: appointment.professionalId,
         customerId: appointment.clientId,
         totalAmount: finalAmount,
         tipAmount,
         discountAmount,
         paymentMethod: data.paymentMethod,
         splitConfig: (data.splitEnabled
-          ? { professionalId: appointment.userId, percentage: appointment.user.baseCommission }
+          ? { professionalId: appointment.professionalId, percentage: appointment.professional.baseCommission }
           : null) as any,
       },
     });
 
     // Se split habilitado, criar transacao de split
-    if (data.splitEnabled && appointment.user.baseCommission > 0) {
-      const professionalAmount = (finalAmount * appointment.user.baseCommission) / 100;
+    if (data.splitEnabled && appointment.professional.baseCommission > 0) {
+      const professionalAmount = (finalAmount * appointment.professional.baseCommission) / 100;
       const businessAmount = finalAmount - professionalAmount;
 
       await this.prisma.splitTransaction.create({
         data: {
           saleId: sale.id,
-          recipientId: appointment.userId,
+          recipientId: appointment.professionalId,
           recipientType: "PROFESSIONAL",
           amount: professionalAmount,
           status: "PENDING",
@@ -91,7 +91,7 @@ export class PosCheckoutService {
       await this.prisma.splitTransaction.create({
         data: {
           saleId: sale.id,
-          recipientId: appointment.user.businessId ?? appointment.userId,
+          recipientId: appointment.businessId,
           recipientType: "BUSINESS",
           amount: businessAmount,
           status: "PENDING",

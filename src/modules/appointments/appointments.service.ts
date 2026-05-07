@@ -5,7 +5,6 @@ import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
 import { ServicesRepository } from "../services/services.repository";
 import { WhatsappService } from "../../infrastructure/notifications/whatsapp.service";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
-import { AppointmentStatus } from "@prisma/client";
 import { CommissionService } from "../admin/commission.service";
 
 @Injectable()
@@ -20,7 +19,7 @@ export class AppointmentsService {
     private readonly commissionService: CommissionService,
   ) { }
 
-  async create(userId: string, dto: CreateAppointmentDto) {
+  async create(businessId: string, professionalId: string, dto: CreateAppointmentDto) {
     let endTime: string | undefined;
     let price: number | undefined;
 
@@ -36,7 +35,9 @@ export class AppointmentsService {
       }
     }
 
-    const appointment = await this.appointmentsRepository.create(userId, {
+    const appointment = await this.appointmentsRepository.create({
+      businessId,
+      professionalId,
       clientId: dto.clientId,
       serviceId: dto.serviceId,
       date: new Date(dto.date),
@@ -45,12 +46,12 @@ export class AppointmentsService {
       price: dto.price ?? price,
     });
 
-    await this.sendNotification(userId, appointment.id);
+    await this.sendNotification(businessId, appointment.id);
 
     return appointment;
   }
 
-  async update(userId: string, id: string, dto: UpdateAppointmentDto) {
+  async update(businessId: string, id: string, dto: UpdateAppointmentDto) {
     let endTime: string | undefined;
     let price: number | undefined;
 
@@ -59,7 +60,7 @@ export class AppointmentsService {
       if (current) {
         const serviceId = dto.serviceId || current.serviceId;
         const startTime = dto.startTime || current.startTime;
-        
+
         if (serviceId && startTime) {
           const service = await this.servicesRepository.findById(serviceId);
           if (service) {
@@ -72,7 +73,7 @@ export class AppointmentsService {
       }
     }
 
-    const appointment = await this.appointmentsRepository.update(id, userId, {
+    const appointment = await this.appointmentsRepository.update(id, businessId, {
       ...dto,
       endTime,
       price,
@@ -82,7 +83,7 @@ export class AppointmentsService {
       if (dto.status === "CANCELLED") {
         await this.syncPaymentStatus(id, "CANCELLED", "Agendamento cancelado");
       } else if (dto.status === "NO_SHOW") {
-        await this.syncPaymentStatus(id, "FAILED", "Cliente não compareceu");
+        await this.syncPaymentStatus(id, "FAILED", "Cliente nao compareceu");
       } else if (dto.status === "COMPLETED") {
         await this.commissionService.calculateForAppointment(id);
       }
@@ -90,24 +91,31 @@ export class AppointmentsService {
     return appointment;
   }
 
-  async listForUser(userId: string, date?: string) {
+  async listForUser(professionalId: string, date?: string) {
     if (date) {
-      return this.appointmentsRepository.findManyByUserIdAndDate(userId, new Date(date));
+      return this.appointmentsRepository.findTodayByProfessionalId(professionalId);
     }
-    return this.appointmentsRepository.findManyByUserId(userId);
+    return this.appointmentsRepository.findManyByProfessionalId(professionalId);
   }
 
-  async listWeekly(userId: string, startDate: string) {
+  async listForBusiness(businessId: string, date?: string) {
+    if (date) {
+      return this.appointmentsRepository.findManyByBusinessIdAndDate(businessId, new Date(date));
+    }
+    return this.appointmentsRepository.findManyByBusinessId(businessId);
+  }
+
+  async listWeekly(professionalId: string, startDate: string) {
     const start = new Date(startDate);
     const end = new Date(start);
     end.setDate(end.getDate() + 7);
-    return this.appointmentsRepository.findRangeByUserId(userId, start, end);
+    return this.appointmentsRepository.findRangeByBusinessId(professionalId, start, end);
   }
 
-  async resendNotification(userId: string, appointmentId: string): Promise<void> {
+  async resendNotification(businessId: string, appointmentId: string): Promise<void> {
     const appointment = await this.appointmentsRepository.findById(appointmentId);
     if (!appointment) throw new NotFoundException("Appointment not found");
-    await this.sendNotification(userId, appointmentId);
+    await this.sendNotification(businessId, appointmentId);
   }
 
   private async syncPaymentStatus(appointmentId: string, status: any, reason?: string) {
@@ -120,20 +128,20 @@ export class AppointmentsService {
     }
   }
 
-  private async sendNotification(userId: string, appointmentId: string) {
+  private async sendNotification(businessId: string, appointmentId: string) {
     const appointment: any = await this.appointmentsRepository.findById(appointmentId);
     if (!appointment) return;
 
-    const { client, service, startTime: time, date, user } = appointment;
-    const serviceName = service?.name || "Serviço";
+    const { client, service, startTime: time, date, business } = appointment;
+    const serviceName = service?.name || "Servico";
 
     try {
-      await this.whatsappService.sendConfirmation(userId, client.phone, {
+      await this.whatsappService.sendConfirmation(businessId, client.phone, {
         clientName: client.name,
         serviceName,
         date: new Date(date).toLocaleDateString("pt-BR"),
         time,
-        businessName: user.businessName || user.name
+        businessName: business?.name || "",
       });
     } catch (error) {
       this.logger.error(`Failed to send WhatsApp notification: ${error.message}`);

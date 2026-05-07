@@ -1,6 +1,6 @@
-import { UserRole, UserPlan } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 
-export { UserRole, UserPlan };
+export { UserRole };
 
 export interface UserEntity {
   id: string;
@@ -8,13 +8,8 @@ export interface UserEntity {
   email: string;
   passwordHash: string;
   phone: string;
-  businessName: string;
-  slug: string;
+  businessId: string | null;
   role: UserRole;
-  plan: UserPlan;
-  pixKeyType?: string | null;
-  pixKey?: string | null;
-  pixName?: string | null;
-  pixCity?: string | null;
+  baseCommission: number;
   createdAt: Date;
 }

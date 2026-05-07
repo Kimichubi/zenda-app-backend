@@ -2,7 +2,8 @@ import { AppointmentStatus } from "../../infrastructure/database/in-memory-datab
 
 export interface AppointmentEntity {
   id: string;
-  userId: string;
+  businessId: string;
+  professionalId: string;
   clientId: string;
   serviceId: string | null;
   date: Date;
@@ -11,7 +12,8 @@ export interface AppointmentEntity {
   price: number | null;
   status: AppointmentStatus;
   service?: { name: string };
-  client?: { name: string };
-  user?: { name: string; businessName?: string; pixKey?: string; pixName?: string; pixCity?: string };
+  client?: { name: string; phone?: string };
+  professional?: { id: string; name: string; baseCommission?: number };
+  business?: { id: string; name: string; pixKey?: string };
   createdAt: Date;
 }

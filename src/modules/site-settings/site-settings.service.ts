@@ -6,64 +6,61 @@ import { Prisma } from '@prisma/client';
 export class SiteSettingsService {
   constructor(private prisma: PrismaService) {}
 
-  async getSettingsByUserId(userId: string) {
+  async getSettingsByBusinessId(businessId: string) {
     const settings = await this.prisma.siteSettings.findUnique({
-      where: { userId },
+      where: { businessId },
     });
     if (!settings) {
       return this.prisma.siteSettings.create({
-        data: { userId },
+        data: { businessId },
       });
     }
     return settings;
   }
 
   async getSettingsBySlug(slug: string) {
-    const user = await this.prisma.user.findUnique({
+    const business = await this.prisma.business.findUnique({
       where: { slug },
       include: {
         siteSettings: true,
         services: true,
-        schedules: true,
-        ownedBusiness: {
-          include: {
-            staff: {
-              select: { id: true, name: true, role: true },
-            },
-            products: {
-              select: { id: true, name: true, price: true, sku: true },
-            },
-          },
+        schedules: {
+          include: { professional: { select: { id: true, name: true, role: true } } },
+        },
+        staff: {
+          select: { id: true, name: true, role: true },
+        },
+        products: {
+          select: { id: true, name: true, price: true, sku: true },
         },
       },
     });
 
-    if (!user) {
-      throw new NotFoundException('Barber not found');
+    if (!business) {
+      throw new NotFoundException('Business not found');
     }
 
     return {
-      barber: {
-        id: user.id,
-        name: user.name,
-        businessName: user.businessName,
-        phone: user.phone,
+      business: {
+        id: business.id,
+        name: business.name,
+        slug: business.slug,
       },
-      settings: user.siteSettings,
-      services: user.services,
-      schedules: user.schedules,
-      staff: user.ownedBusiness?.staff ?? [],
-      products: user.ownedBusiness?.products ?? [],
+      settings: business.siteSettings,
+      services: business.services,
+      schedules: business.schedules,
+      staff: business.staff,
+      products: business.products,
     };
   }
 
-  async updateSettings(userId: string, data: Prisma.SiteSettingsUpdateInput) {
+  async updateSettings(businessId: string, data: Prisma.SiteSettingsUpdateInput) {
     return this.prisma.siteSettings.upsert({
-      where: { userId },
+      where: { businessId },
       update: data,
       create: {
         ...data,
-        userId,
+        businessId,
       } as Prisma.SiteSettingsCreateInput,
     });
   }

@@ -8,17 +8,17 @@ export class CommissionService {
   async calculateForAppointment(appointmentId: string) {
     const appointment = await this.prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { user: true },
+      include: { professional: true },
     });
 
-    if (!appointment || !appointment.user) return;
+    if (!appointment || !appointment.professional) return;
 
-    const percentage = appointment.user.baseCommission;
+    const percentage = appointment.professional.baseCommission;
     const amount = ((appointment.price || 0) * percentage) / 100;
 
     return this.prisma.commission.create({
       data: {
-        userId: appointment.user.id,
+        userId: appointment.professional.id,
         appointmentId: appointment.id,
         amount,
         percentage,

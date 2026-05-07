@@ -11,11 +11,11 @@ export class SelfServiceController {
     return {
       id: appointment.id,
       service: appointment.service,
-      serviceName: appointment.service?.name || "Serviço",
+      serviceName: appointment.service?.name || "Servico",
       date: appointment.date,
       startTime: appointment.startTime,
-      professional: appointment.user,
-      professionalName: appointment.user?.name || "Profissional",
+      professional: appointment.professional,
+      professionalName: appointment.professional?.name || "Profissional",
       client: appointment.client,
       clientName: appointment.client?.name || "Cliente",
     };

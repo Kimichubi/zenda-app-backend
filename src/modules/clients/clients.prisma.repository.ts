@@ -8,13 +8,13 @@ import { FindClientsDto } from "./dto/find-clients.dto";
 export class ClientsPrismaRepository implements ClientsRepository {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findManyByUserId(
-    userId: string,
+  async findManyByBusinessId(
+    businessId: string,
     query: FindClientsDto,
   ): Promise<{ data: ClientEntity[]; total: number }> {
     const { search, startDate, endDate, page = 1, limit = 10, status } = query;
 
-    const where: any = { userId };
+    const where: any = { businessId };
 
     if (status) {
       where.status = status;
@@ -53,18 +53,18 @@ export class ClientsPrismaRepository implements ClientsRepository {
     return { data, total };
   }
 
-  async findByEmailAndUserId(
+  async findByEmailAndBusinessId(
     email: string,
-    userId: string,
+    businessId: string,
   ): Promise<ClientEntity | null> {
-    return this.prisma.client.findFirst({ where: { email, userId } });
+    return this.prisma.client.findFirst({ where: { email, businessId } });
   }
 
-  async findByPhoneAndUserId(
+  async findByPhoneAndBusinessId(
     phone: string,
-    userId: string,
+    businessId: string,
   ): Promise<ClientEntity | null> {
-    return this.prisma.client.findFirst({ where: { phone, userId } });
+    return this.prisma.client.findFirst({ where: { phone, businessId } });
   }
 
   async findById(id: string): Promise<ClientEntity | null> {
@@ -72,12 +72,12 @@ export class ClientsPrismaRepository implements ClientsRepository {
   }
 
   async create(
-    userId: string,
+    businessId: string,
     input: { name: string; phone: string; email?: string; notes?: string },
   ): Promise<ClientEntity> {
     return this.prisma.client.create({
       data: {
-        userId,
+        businessId,
         name: input.name,
         phone: input.phone,
         email: input.email,
@@ -88,30 +88,28 @@ export class ClientsPrismaRepository implements ClientsRepository {
 
   async update(
     id: string,
-    userId: string,
+    businessId: string,
     input: { name?: string; phone?: string; email?: string; notes?: string },
   ): Promise<ClientEntity | null> {
     const existing = await this.prisma.client.findFirst({
-      where: { id, userId },
+      where: { id, businessId },
     });
     if (!existing) {
       return null;
     }
-
     return this.prisma.client.update({
       where: { id },
       data: input,
     });
   }
 
-  async delete(id: string, userId: string): Promise<void> {
+  async delete(id: string, businessId: string): Promise<void> {
     const existing = await this.prisma.client.findFirst({
-      where: { id, userId },
+      where: { id, businessId },
     });
     if (!existing) {
       return;
     }
-
     await this.prisma.client.delete({ where: { id } });
   }
 }

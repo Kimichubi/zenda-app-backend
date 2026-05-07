@@ -1,6 +1,6 @@
 export interface ServiceEntity {
   id: string;
-  userId: string;
+  businessId: string;
   name: string;
   duration: number;
   price: number;

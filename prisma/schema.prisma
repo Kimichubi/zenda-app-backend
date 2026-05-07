@@ -6,21 +6,36 @@ datasource db {
   provider = "postgresql"
 }
 
+model PlatformAdmin {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Business {
   id             String         @id @default(uuid())
-  ownerId        String         @unique
-  owner          User           @relation("BusinessOwner", fields: [ownerId], references: [id])
   name           String
   slug           String         @unique
   plan           BusinessPlan   @default(PRO)
-  status         BusinessStatus @default(ACTIVE)
+  status         BusinessStatus @default(PENDING)
   pixKey         String?
-  loyaltyConfig  LoyaltyConfig?
-  staff          User[]         @relation("BusinessStaff")
+  whatsappStatus String         @default("DISCONNECTED")
+
+  staff          User[]
+  services       Service[]
+  clients        Client[]
+  appointments   Appointment[]
   products       Product[]
   sales          Sale[]
   categories     Category[]
   reviews        Review[]
+  schedules      Schedule[]
+  siteSettings   SiteSettings?
+  loyaltyConfig  LoyaltyConfig?
+
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -42,100 +57,38 @@ model User {
   email           String         @unique
   passwordHash    String
   phone           String         @default("")
-  businessName    String         @default("")
-  slug            String         @unique @default("")
-  role            UserRole       @default(USER)
-  plan            UserPlan       @default(ONBOARDING)
-  whatsappStatus  String         @default("DISCONNECTED")
 
-  // Enterprise fields
   businessId      String?
-  business        Business?      @relation("BusinessStaff", fields: [businessId], references: [id])
-  ownedBusiness   Business?      @relation("BusinessOwner")
+  business        Business?      @relation(fields: [businessId], references: [id])
+  role            UserRole       @default(PROFESSIONAL)
   baseCommission  Float          @default(0)
 
-  // Pix Config
-  pixKeyType      String?
-  pixKey          String?
-  pixName         String?
-  pixCity         String?
-
-  clients         Client[]
   appointments    Appointment[]
   commissions     Commission[]
   sales           Sale[]
   schedules       Schedule[]
-  services        Service[]
-  siteSettings    SiteSettings?
+
   createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 enum UserRole {
-  ADMIN
+  OWNER
   MANAGER
   PROFESSIONAL
-  USER
-}
-
-enum UserPlan {
-  ONBOARDING
-  FREE
-  PRO
-  ENTERPRISE
-}
-
-model SiteSettings {
-  id                String   @id @default(uuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  themeColor        String   @default("#000000")
-  heroTitle         String   @default("Agende seu horário")
-  heroSubtitle      String   @default("O melhor servico da regiao")
-  aboutText         String   @default("Focados em excelencia e estilo.")
-  logoUrl           String?
-  instagramUrl      String?
-  facebookUrl       String?
-  whatsappUrl       String?
-
-  // SEO fields
-  metaTitle         String?
-  metaDescription   String?
-  city              String?
-  state             String?
-  googleBusinessUrl String?
-  galleryPhotos     String[]
-
-  // Bot / AI Settings
-  botEnabled        Boolean  @default(true)
-  botPrompt         String?  @db.Text
-  botTone           String   @default("amigável")
-  botUseEmojis      Boolean  @default(true)
-  botMaxSentences   Int      @default(3)
-
-  // AI Provider Settings
-  aiProvider        String   @default("default")
-  aiApiKey          String?  @db.Text
-  aiModel           String?
-
-  // Appointment Message Templates
-  appointmentConfirmationTemplate  String?  @db.Text
-  appointmentReminderTemplate      String?  @db.Text
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
 }
 
 model Service {
   id           String        @id @default(uuid())
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId   String
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name         String
   duration     Int
   price        Float
-  createdAt    DateTime      @default(now())
   appointments Appointment[]
+  createdAt    DateTime      @default(now())
 
-  @@index([userId])
+  @@index([businessId])
 }
 
 model Client {
@@ -145,24 +98,20 @@ model Client {
   email         String?
   notes         String?
   status        ClientStatus    @default(ACTIVE)
-  userId        String
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId    String
+  business      Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
   pointsBalance Int             @default(0)
-
-  // New fields
   birthday      DateTime?
   avatarUrl     String?
   tags          String[]
-
   appointments  Appointment[]
   sales         Sale[]
   reviews       Review[]
   photos        ClientPhoto[]
   credit        ClientCredit?
-
   createdAt     DateTime        @default(now())
 
-  @@index([userId])
+  @@index([businessId])
 }
 
 enum ClientStatus {
@@ -173,7 +122,7 @@ enum ClientStatus {
 model Product {
   id           String              @id @default(uuid())
   businessId   String
-  business     Business            @relation(fields: [businessId], references: [id])
+  business     Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name         String
   sku          String?
   price        Float
@@ -188,7 +137,7 @@ model Product {
 model InventoryMovement {
   id        String       @id @default(uuid())
   productId String
-  product   Product      @relation(fields: [productId], references: [id])
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantity  Int
   type      MovementType
   reason    String?
@@ -203,7 +152,7 @@ enum MovementType {
 model Sale {
   id             String            @id @default(uuid())
   businessId     String
-  business       Business          @relation(fields: [businessId], references: [id])
+  business       Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customerId     String?
   client         Client?           @relation(fields: [customerId], references: [id])
   sellerId       String
@@ -224,9 +173,9 @@ model Sale {
 model SaleItem {
   id        String  @id @default(uuid())
   saleId    String
-  sale      Sale    @relation(fields: [saleId], references: [id])
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   productId String
-  product   Product @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantity  Int
   price     Float
 }
@@ -234,7 +183,7 @@ model SaleItem {
 model SplitTransaction {
   id            String   @id @default(uuid())
   saleId        String
-  sale          Sale     @relation(fields: [saleId], references: [id])
+  sale          Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   recipientId   String
   recipientType String
   amount        Float
@@ -253,22 +202,24 @@ model ClientCredit {
 }
 
 model ClientCreditTransaction {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   creditId    String
   credit      ClientCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
   amount      Float
   type        String
   saleId      String?
   description String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime     @default(now())
 }
 
 model Appointment {
   id                String            @id @default(uuid())
+  businessId        String
+  business          Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  professionalId    String
+  professional      User              @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   clientId          String
   client            Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  userId            String
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceId         String?
   service           Service?          @relation(fields: [serviceId], references: [id])
   date              DateTime
@@ -276,8 +227,6 @@ model Appointment {
   endTime           String?
   price             Float?
   status            AppointmentStatus @default(SCHEDULED)
-
-  // New fields
   notes             String?
   source            String            @default("WEB")
   rescheduleToken   String?           @unique
@@ -287,9 +236,11 @@ model Appointment {
   commission        Commission?
   review            Review?
   photos            ClientPhoto[]
+
   createdAt         DateTime          @default(now())
 
-  @@index([userId, date])
+  @@index([businessId, date])
+  @@index([professionalId, date])
   @@index([clientId])
   @@index([rescheduleToken])
 }
@@ -311,7 +262,7 @@ model Payment {
 model Commission {
   id            String           @id @default(uuid())
   userId        String
-  user          User             @relation(fields: [userId], references: [id])
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointmentId String?          @unique
   appointment   Appointment?     @relation(fields: [appointmentId], references: [id])
   saleId        String?          @unique
@@ -332,76 +283,116 @@ enum CommissionStatus {
 model LoyaltyConfig {
   id              String   @id @default(uuid())
   businessId      String   @unique
-  business        Business @relation(fields: [businessId], references: [id])
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   pointsPerReal   Float    @default(1)
   minRedeemPoints Int      @default(100)
   active          Boolean  @default(true)
 }
 
 model Schedule {
-  id           String   @id @default(uuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  weekday      Int
-  startTime    String
-  endTime      String
-  slotDuration Int      @default(30)
-  breakStart   String?
-  breakEnd     String?
+  id             String   @id @default(uuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  professionalId String
+  professional   User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  weekday        Int
+  startTime      String
+  endTime        String
+  slotDuration   Int      @default(30)
+  breakStart     String?
+  breakEnd       String?
 
-  @@unique([userId, weekday])
+  @@unique([businessId, professionalId, weekday])
 }
 
 model BlockedSlot {
-  id        String   @id @default(uuid())
-  userId    String
-  date      DateTime
-  startTime String
-  endTime   String
-  reason    String   @default("FOLGA")
-  createdAt DateTime @default(now())
+  id             String   @id @default(uuid())
+  professionalId String
+  date           DateTime
+  startTime      String
+  endTime        String
+  reason         String   @default("FOLGA")
+  createdAt      DateTime @default(now())
 
-  @@index([userId, date])
+  @@index([professionalId, date])
 }
 
 model Category {
   id         String   @id @default(uuid())
   businessId String
-  business   Business @relation(fields: [businessId], references: [id])
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name       String
 }
 
 model Review {
-  id                 String   @id @default(uuid())
+  id                 String      @id @default(uuid())
   clientId           String
-  client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  appointmentId      String   @unique
+  client             Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  appointmentId      String      @unique
   appointment        Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   businessId         String
-  business           Business @relation(fields: [businessId], references: [id])
+  business           Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   rating             Int
   comment            String?
   serviceRating      Int?
   professionalRating Int?
-  isPublic           Boolean  @default(true)
+  isPublic           Boolean     @default(true)
   reply              String?
   replyAt            DateTime?
-  createdAt          DateTime @default(now())
+  createdAt          DateTime    @default(now())
 
   @@index([businessId])
 }
 
 model ClientPhoto {
-  id            String   @id @default(uuid())
+  id            String       @id @default(uuid())
   clientId      String
-  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client        Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   appointmentId String?
   appointment   Appointment? @relation(fields: [appointmentId], references: [id])
-  type          String   @default("GENERAL")
+  type          String       @default("GENERAL")
   url           String
   thumbnailUrl  String?
   description   String?
-  takenAt       DateTime @default(now())
+  takenAt       DateTime     @default(now())
+}
+
+model SiteSettings {
+  id                String   @id @default(uuid())
+  businessId        String   @unique
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  themeColor        String   @default("#000000")
+  heroTitle         String   @default("Agende seu horário")
+  heroSubtitle      String   @default("O melhor servico da regiao")
+  aboutText         String   @default("Focados em excelencia e estilo.")
+  logoUrl           String?
+  instagramUrl      String?
+  facebookUrl       String?
+  whatsappUrl       String?
+
+  metaTitle         String?
+  metaDescription   String?
+  city              String?
+  state             String?
+  googleBusinessUrl String?
+  galleryPhotos     String[]
+
+  botEnabled        Boolean  @default(true)
+  botPrompt         String?  @db.Text
+  botTone           String   @default("amigável")
+  botUseEmojis      Boolean  @default(true)
+  botMaxSentences   Int      @default(3)
+
+  aiProvider        String   @default("default")
+  aiApiKey          String?  @db.Text
+  aiModel           String?
+
+  appointmentConfirmationTemplate  String?  @db.Text
+  appointmentReminderTemplate      String?  @db.Text
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model ChatSession {
@@ -418,15 +409,15 @@ model ChatSession {
 }
 
 model ChatLog {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   sessionId   String
   session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   incoming    String
   outgoing    String
   intent      String
   confidence  Float
-  metadata    Json     @default("{}")
-  createdAt   DateTime @default(now())
+  metadata    Json        @default("{}")
+  createdAt   DateTime    @default(now())
 
   @@index([sessionId])
   @@index([createdAt])

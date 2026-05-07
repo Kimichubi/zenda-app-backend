@@ -6,11 +6,15 @@ import { SchedulesRepository } from "./schedules.repository";
 export class SchedulesService {
   constructor(private readonly schedulesRepository: SchedulesRepository) { }
 
-  list(userId: string) {
-    return this.schedulesRepository.list(userId);
+  listByBusiness(businessId: string) {
+    return this.schedulesRepository.listByBusinessId(businessId);
   }
 
-  upsert(userId: string, dto: UpsertScheduleDto) {
-    return this.schedulesRepository.upsert(userId, dto);
+  listByProfessional(professionalId: string) {
+    return this.schedulesRepository.listByProfessionalId(professionalId);
+  }
+
+  upsert(businessId: string, professionalId: string, dto: UpsertScheduleDto) {
+    return this.schedulesRepository.upsert(businessId, professionalId, dto);
   }
 }

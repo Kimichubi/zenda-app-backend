@@ -32,24 +32,26 @@ export class CronService {
       },
       include: {
         client: true,
-        user: true,
+        professional: true,
         service: true,
+        business: true,
       },
     });
 
     for (const appt of appointments) {
       try {
-        if (!appt.client.phone || (appt.user.whatsappStatus !== 'SCANNING' && appt.user.whatsappStatus !== 'CONNECTED')) continue;
+        const phone = appt.client?.phone;
+        if (!phone) continue;
 
-        await this.whatsappService.sendReminder(appt.userId, appt.client.phone, {
+        await this.whatsappService.sendReminder(appt.professional.id, phone, {
           clientName: appt.client.name,
           serviceName: appt.service?.name || 'Serviço',
           date: tomorrow.toLocaleDateString('pt-BR'),
           time: appt.startTime,
-          businessName: appt.user.businessName,
+          businessName: appt.business.name,
         });
       } catch (error) {
-        this.logger.error(`Erro ao enviar lembrete para ${appt.client.phone}: ${error.message}`);
+        this.logger.error(`Erro ao enviar lembrete para ${appt.client?.phone}: ${error.message}`);
       }
     }
     this.logger.log(`Lembretes enviados para ${appointments.length} clientes.`);

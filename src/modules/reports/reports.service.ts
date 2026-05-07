@@ -31,8 +31,8 @@ export class ReportsService {
     return { workbook, worksheet };
   }
 
-  async exportAppointmentsExcel(userId: string) {
-    const appointments = await this.appointmentsRepository.findManyByUserId(userId);
+  async exportAppointmentsExcel(businessId: string) {
+    const appointments = await this.appointmentsRepository.findManyByBusinessId(businessId);
     
     const { workbook, worksheet } = await this.createStyledWorkbook("Agendamentos", [
       { header: "DATA", key: "date", width: 15 },
@@ -60,8 +60,8 @@ export class ReportsService {
     return workbook.xlsx.writeBuffer();
   }
 
-  async exportPaymentsExcel(userId: string) {
-    const paymentsResponse = await this.paymentsRepository.findManyByUserId(userId, { limit: 10000 });
+  async exportPaymentsExcel(businessId: string) {
+    const paymentsResponse = await this.paymentsRepository.findManyByBusinessId(businessId, { limit: 10000 });
     const payments = paymentsResponse.data;
     
     const { workbook, worksheet } = await this.createStyledWorkbook("Financeiro", [

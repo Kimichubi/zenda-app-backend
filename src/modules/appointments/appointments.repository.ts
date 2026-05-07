@@ -2,22 +2,24 @@ import { AppointmentEntity } from "./appointments.entity";
 import { AppointmentStatus } from "../../infrastructure/database/in-memory-database.service";
 
 export abstract class AppointmentsRepository {
-  abstract findManyByUserId(userId: string): Promise<AppointmentEntity[]>;
-  abstract findManyByUserIdAndDate(userId: string, date: Date): Promise<AppointmentEntity[]>;
-  abstract findRangeByUserId(userId: string, start: Date, end: Date): Promise<AppointmentEntity[]>;
+  abstract findManyByBusinessId(businessId: string): Promise<AppointmentEntity[]>;
+  abstract findManyByBusinessIdAndDate(businessId: string, date: Date): Promise<AppointmentEntity[]>;
+  abstract findRangeByBusinessId(businessId: string, start: Date, end: Date): Promise<AppointmentEntity[]>;
+  abstract findManyByProfessionalId(professionalId: string): Promise<AppointmentEntity[]>;
+  abstract findTodayByProfessionalId(professionalId: string): Promise<AppointmentEntity[]>;
+  abstract findUpcomingByProfessionalId(professionalId: string): Promise<AppointmentEntity[]>;
   abstract findConflict(
-    userId: string,
+    professionalId: string,
     date: Date,
     startTime?: string,
   ): Promise<AppointmentEntity | null>;
-  abstract findByWeek(userId: string, startDate: Date): Promise<AppointmentEntity[]>;
+  abstract findByWeek(professionalId: string, startDate: Date): Promise<AppointmentEntity[]>;
   abstract findByClientId(clientId: string): Promise<AppointmentEntity[]>;
   abstract findById(id: string): Promise<AppointmentEntity | null>;
-  abstract findTodayByUserId(userId: string): Promise<AppointmentEntity[]>;
-  abstract findUpcomingByUserId(userId: string): Promise<AppointmentEntity[]>;
   abstract create(
-    userId: string,
     input: {
+      businessId: string;
+      professionalId: string;
       clientId: string;
       serviceId?: string;
       date: Date;
@@ -28,7 +30,7 @@ export abstract class AppointmentsRepository {
   ): Promise<AppointmentEntity>;
   abstract update(
     id: string,
-    userId: string,
+    businessId: string,
     input: {
       status?: AppointmentStatus;
       clientId?: string;
@@ -38,10 +40,5 @@ export abstract class AppointmentsRepository {
       endTime?: string;
       price?: number;
     },
-  ): Promise<AppointmentEntity | null>;
-  abstract updateStatus(
-    id: string,
-    userId: string,
-    status: AppointmentStatus,
   ): Promise<AppointmentEntity | null>;
 }

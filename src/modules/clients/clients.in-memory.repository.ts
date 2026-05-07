@@ -12,13 +12,13 @@ import { FindClientsDto } from "./dto/find-clients.dto";
 export class ClientsInMemoryRepository implements ClientsRepository {
   constructor(private readonly db: InMemoryDatabaseService) { }
 
-  async findManyByUserId(
-    userId: string,
+  async findManyByBusinessId(
+    businessId: string,
     query: FindClientsDto,
   ): Promise<{ data: ClientEntity[]; total: number }> {
     const { search, startDate, endDate, page = 1, limit = 10, status } = query;
 
-    let filtered = this.db.clients.filter((client) => client.userId === userId);
+    let filtered = this.db.clients.filter((client) => client.businessId === businessId);
 
     if (search) {
       const lowerSearch = search.toLowerCase();
@@ -51,24 +51,24 @@ export class ClientsInMemoryRepository implements ClientsRepository {
     return { data, total };
   }
 
-  async findByEmailAndUserId(
+  async findByEmailAndBusinessId(
     email: string,
-    userId: string,
+    businessId: string,
   ): Promise<ClientEntity | null> {
     return (
       this.db.clients.find(
-        (client) => client.userId === userId && client.email === email,
+        (client) => client.businessId === businessId && client.email === email,
       ) ?? null
     );
   }
 
-  async findByPhoneAndUserId(
+  async findByPhoneAndBusinessId(
     phone: string,
-    userId: string,
+    businessId: string,
   ): Promise<ClientEntity | null> {
     return (
       this.db.clients.find(
-        (client) => client.userId === userId && client.phone === phone,
+        (client) => client.businessId === businessId && client.phone === phone,
       ) ?? null
     );
   }
@@ -78,12 +78,12 @@ export class ClientsInMemoryRepository implements ClientsRepository {
   }
 
   async create(
-    userId: string,
+    businessId: string,
     input: { name: string; phone: string; email?: string; notes?: string },
   ): Promise<ClientEntity> {
     const record: ClientRecord = {
       id: makeId(),
-      userId,
+      businessId,
       name: input.name,
       phone: input.phone,
       email: input.email ?? null,
@@ -98,11 +98,11 @@ export class ClientsInMemoryRepository implements ClientsRepository {
 
   async update(
     id: string,
-    userId: string,
+    businessId: string,
     input: { name?: string; phone?: string; email?: string; notes?: string },
   ): Promise<ClientEntity | null> {
     const index = this.db.clients.findIndex(
-      (client) => client.id === id && client.userId === userId,
+      (client) => client.id === id && client.businessId === businessId,
     );
     if (index < 0) {
       return null;
@@ -111,15 +111,14 @@ export class ClientsInMemoryRepository implements ClientsRepository {
     this.db.clients[index] = {
       ...this.db.clients[index],
       ...input,
-      email:
-        input.email === undefined ? this.db.clients[index].email : input.email,
+      email: input.email === undefined ? this.db.clients[index].email : input.email,
     };
     return this.db.clients[index];
   }
 
-  async delete(id: string, userId: string): Promise<void> {
+  async delete(id: string, businessId: string): Promise<void> {
     this.db.clients = this.db.clients.filter(
-      (client) => !(client.id === id && client.userId === userId),
+      (client) => !(client.id === id && client.businessId === businessId),
     );
   }
 }

@@ -8,45 +8,77 @@ import { AppointmentStatus } from "../../infrastructure/database/in-memory-datab
 export class AppointmentsPrismaRepository implements AppointmentsRepository {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findManyByUserId(userId: string): Promise<AppointmentEntity[]> {
+  async findManyByBusinessId(businessId: string): Promise<AppointmentEntity[]> {
     return this.prisma.appointment.findMany({
-      where: { userId },
+      where: { businessId },
       orderBy: { date: "asc" },
-      include: {
-        client: true,
-        service: true,
-      }
+      include: { client: true, service: true, professional: { select: { id: true, name: true } } },
     }) as any;
   }
 
-  async findManyByUserIdAndDate(userId: string, date: Date): Promise<AppointmentEntity[]> {
+  async findManyByBusinessIdAndDate(businessId: string, date: Date): Promise<AppointmentEntity[]> {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
     return this.prisma.appointment.findMany({
-      where: { userId, date: { gte: start, lt: end } },
+      where: { businessId, date: { gte: start, lt: end } },
+      include: { client: true, service: true, professional: { select: { id: true, name: true } } },
+      orderBy: { date: "asc" },
+    }) as any;
+  }
+
+  async findRangeByBusinessId(businessId: string, start: Date, end: Date): Promise<AppointmentEntity[]> {
+    return this.prisma.appointment.findMany({
+      where: { businessId, date: { gte: start, lt: end } },
+      include: { client: true, service: true, professional: { select: { id: true, name: true } } },
+      orderBy: { date: "asc" },
+    }) as any;
+  }
+
+  async findManyByProfessionalId(professionalId: string): Promise<AppointmentEntity[]> {
+    return this.prisma.appointment.findMany({
+      where: { professionalId },
+      orderBy: { date: "asc" },
+      include: { client: true, service: true },
+    }) as any;
+  }
+
+  async findTodayByProfessionalId(professionalId: string): Promise<AppointmentEntity[]> {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    return this.prisma.appointment.findMany({
+      where: { professionalId, date: { gte: startOfDay, lt: endOfDay } },
       include: { client: true, service: true },
       orderBy: { date: "asc" },
     }) as any;
   }
 
-  async findRangeByUserId(userId: string, start: Date, end: Date): Promise<AppointmentEntity[]> {
+  async findUpcomingByProfessionalId(professionalId: string): Promise<AppointmentEntity[]> {
+    const now = new Date();
     return this.prisma.appointment.findMany({
-      where: { userId, date: { gte: start, lt: end } },
+      where: {
+        professionalId,
+        date: { gt: now },
+        NOT: { status: "CANCELLED" },
+      },
       include: { client: true, service: true },
       orderBy: { date: "asc" },
+      take: 10,
     }) as any;
   }
 
   async findConflict(
-    userId: string,
+    professionalId: string,
     date: Date,
     startTime?: string,
   ): Promise<AppointmentEntity | null> {
     return this.prisma.appointment.findFirst({
       where: {
-        userId,
+        professionalId,
         date,
         ...(startTime ? { startTime } : {}),
         NOT: { status: "CANCELLED" },
@@ -54,7 +86,7 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     }) as any;
   }
 
-  async findByWeek(userId: string, startDate: Date): Promise<AppointmentEntity[]> {
+  async findByWeek(professionalId: string, startDate: Date): Promise<AppointmentEntity[]> {
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);
@@ -62,13 +94,10 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
 
     return this.prisma.appointment.findMany({
       where: {
-        userId,
+        professionalId,
         date: { gte: start, lt: end },
       },
-      include: {
-        client: true,
-        service: true,
-      },
+      include: { client: true, service: true },
       orderBy: { date: "asc" },
     }) as any;
   }
@@ -86,47 +115,16 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
       include: {
         client: true,
         service: true,
-        user: true,
+        professional: { select: { id: true, name: true } },
+        business: { select: { id: true, name: true } },
       }
     }) as any;
   }
 
-  async findTodayByUserId(userId: string): Promise<AppointmentEntity[]> {
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
-
-    return this.prisma.appointment.findMany({
-      where: { userId, date: { gte: startOfDay, lt: endOfDay } },
-      include: {
-        client: true,
-        service: true,
-      },
-      orderBy: { date: "asc" },
-    }) as any;
-  }
-
-  async findUpcomingByUserId(userId: string): Promise<AppointmentEntity[]> {
-    const now = new Date();
-    return this.prisma.appointment.findMany({
-      where: {
-        userId,
-        date: { gt: now },
-        NOT: { status: "CANCELLED" },
-      },
-      include: {
-        client: true,
-        service: true,
-      },
-      orderBy: { date: "asc" },
-      take: 10,
-    }) as any;
-  }
-
   async create(
-    userId: string,
     input: {
+      businessId: string;
+      professionalId: string;
       clientId: string;
       serviceId?: string;
       date: Date;
@@ -135,7 +133,9 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
       price?: number;
     },
   ): Promise<AppointmentEntity> {
-    if (!userId) throw new BadRequestException("userId is required to create an appointment");
+    if (!input.businessId || !input.professionalId) {
+      throw new BadRequestException("businessId and professionalId are required");
+    }
     return this.prisma.appointment.create({
       data: {
         date: input.date,
@@ -143,20 +143,18 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
         endTime: input.endTime ?? null,
         price: input.price ?? null,
         status: "SCHEDULED",
-        user: { connect: { id: userId } },
+        business: { connect: { id: input.businessId } },
+        professional: { connect: { id: input.professionalId } },
         client: { connect: { id: input.clientId } },
         ...(input.serviceId ? { service: { connect: { id: input.serviceId } } } : {}),
       },
-      include: {
-        client: true,
-        service: true,
-      }
+      include: { client: true, service: true },
     }) as any;
   }
 
   async update(
     id: string,
-    userId: string,
+    businessId: string,
     input: {
       status?: AppointmentStatus;
       clientId?: string;
@@ -168,7 +166,7 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
     },
   ): Promise<AppointmentEntity | null> {
     const existing = await this.prisma.appointment.findFirst({
-      where: { id, userId },
+      where: { id, businessId },
     });
     if (!existing) return null;
 
@@ -185,30 +183,7 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
         ...(endTime !== undefined ? { endTime } : {}),
         ...(price !== undefined ? { price } : {}),
       },
-      include: {
-        client: true,
-        service: true,
-      },
+      include: { client: true, service: true },
     })) as any;
-  }
-
-  async updateStatus(
-    id: string,
-    userId: string,
-    status: AppointmentStatus,
-  ): Promise<AppointmentEntity | null> {
-    const existing = await this.prisma.appointment.findFirst({
-      where: { id, userId },
-    });
-    if (!existing) return null;
-
-    return this.prisma.appointment.update({
-      where: { id },
-      data: { status },
-      include: {
-        client: true,
-        service: true,
-      }
-    }) as any;
   }
 }

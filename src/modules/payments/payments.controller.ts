@@ -1,12 +1,19 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, BadRequestException, Request } from "@nestjs/common";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { BusinessGuard } from "../../common/guards/business.guard";
 import { CreatePixPaymentDto } from "./dto/create-pix-payment.dto";
 import { PaymentsService } from "./payments.service";
-import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { FindPaymentsDto } from "./dto/find-payments.dto";
 
+function requireBusinessId(req: any): string {
+  if (!req.user?.businessId) {
+    throw new BadRequestException("Nenhum negocio associado. Complete o onboarding.");
+  }
+  return req.user.businessId;
+}
+
 @Controller("payments")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, BusinessGuard)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) { }
 
@@ -16,8 +23,8 @@ export class PaymentsController {
   }
 
   @Get()
-  list(@CurrentUser() user: { id: string }, @Query() query: FindPaymentsDto) {
-    return this.paymentsService.listForUser(user.id, query);
+  list(@Request() req, @Query() query: FindPaymentsDto) {
+    return this.paymentsService.listForBusiness(requireBusinessId(req), query);
   }
 
   @Get(":id")

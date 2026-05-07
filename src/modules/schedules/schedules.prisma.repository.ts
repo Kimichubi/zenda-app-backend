@@ -7,27 +7,41 @@ import { SchedulesRepository } from "./schedules.repository";
 export class SchedulesPrismaRepository implements SchedulesRepository {
   constructor(private readonly prisma: PrismaService) { }
 
-  async list(userId: string): Promise<ScheduleEntity[]> {
+  async listByBusinessId(businessId: string): Promise<ScheduleEntity[]> {
     return this.prisma.schedule.findMany({
-      where: { userId },
+      where: { businessId },
+      include: { professional: { select: { id: true, name: true } } },
+      orderBy: { weekday: "asc" },
+    });
+  }
+
+  async listByProfessionalId(professionalId: string): Promise<ScheduleEntity[]> {
+    return this.prisma.schedule.findMany({
+      where: { professionalId },
       orderBy: { weekday: "asc" },
     });
   }
 
   async upsert(
-    userId: string,
+    businessId: string,
+    professionalId: string,
     input: { weekday: number; startTime: string; endTime: string },
   ): Promise<ScheduleEntity> {
     return this.prisma.schedule.upsert({
       where: {
-        userId_weekday: { userId, weekday: input.weekday },
+        businessId_professionalId_weekday: {
+          businessId,
+          professionalId,
+          weekday: input.weekday,
+        },
       },
       update: {
         startTime: input.startTime,
         endTime: input.endTime,
       },
       create: {
-        userId,
+        businessId,
+        professionalId,
         weekday: input.weekday,
         startTime: input.startTime,
         endTime: input.endTime,

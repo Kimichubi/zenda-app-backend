@@ -44,15 +44,15 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
     });
   }
 
-  async findManyByUserId(
-    userId: string,
+  async findManyByBusinessId(
+    businessId: string,
     query: FindPaymentsDto = {},
   ): Promise<{ data: PaymentEntity[]; total: number }> {
     const { search, status, page = 1, limit = 10 } = query;
 
     let filtered = this.db.payments.filter((p) => {
       const appointment = this.db.appointments.find((a) => a.id === p.appointmentId);
-      return appointment && appointment.userId === userId;
+      return appointment && appointment.businessId === businessId;
     });
 
     if (search) {
@@ -61,10 +61,10 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
         const appointment = this.db.appointments.find((a) => a.id === p.appointmentId);
         if (!appointment) return false;
         const client = this.db.clients.find((c) => c.id === appointment.clientId);
-        const service = this.db.services.find((sv) => sv.id === appointment.serviceId);
+        const svc = this.db.services.find((sv) => sv.id === appointment.serviceId);
         return (
           client?.name.toLowerCase().includes(s) ||
-          service?.name.toLowerCase().includes(s)
+          svc?.name.toLowerCase().includes(s)
         );
       });
     }
@@ -80,13 +80,13 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
     const data = payments.map((p) => {
       const appointment = this.db.appointments.find((a) => a.id === p.appointmentId);
       const client = appointment ? this.db.clients.find((c) => c.id === appointment.clientId) : null;
-      const service = appointment ? this.db.services.find((sv) => sv.id === appointment.serviceId) : null;
+      const svc = appointment ? this.db.services.find((sv) => sv.id === appointment.serviceId) : null;
 
       return {
         id: p.id,
         appointmentId: p.appointmentId,
         clientName: client?.name || "Cliente",
-        serviceName: service?.name || "Serviço",
+        serviceName: svc?.name || "Servico",
         amount: p.amount,
         status: p.status as PaymentStatus,
         pixCode: p.pixCode ?? null,
@@ -102,19 +102,13 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
   async findById(id: string): Promise<PaymentEntity | null> {
     const p = this.db.payments.find((x) => x.id === id);
     if (!p) return null;
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-    };
+    return { ...p, status: p.status as PaymentStatus };
   }
 
   async findByAppointmentId(appointmentId: string): Promise<PaymentEntity | null> {
     const p = this.db.payments.find((x) => x.appointmentId === appointmentId);
     if (!p) return null;
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-    };
+    return { ...p, status: p.status as PaymentStatus };
   }
 
   async markAsPaid(id: string): Promise<PaymentEntity | null> {
@@ -123,10 +117,7 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
     this.db.payments[idx].status = "PAID";
     this.db.payments[idx].paidAt = new Date();
     const p = this.db.payments[idx];
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-    };
+    return { ...p, status: p.status as PaymentStatus };
   }
 
   async cancel(id: string, reason?: string): Promise<PaymentEntity | null> {
@@ -135,10 +126,7 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
     this.db.payments[idx].status = "CANCELLED";
     this.db.payments[idx].reason = reason ?? null;
     const p = this.db.payments[idx];
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-    };
+    return { ...p, status: p.status as PaymentStatus };
   }
 
   async updateStatus(id: string, status: PaymentStatus, reason?: string, pixCode?: string): Promise<PaymentEntity | null> {
@@ -149,9 +137,6 @@ export class PaymentsInMemoryRepository implements PaymentsRepository {
     if (pixCode !== undefined) this.db.payments[idx].pixCode = pixCode ?? null;
     if (status === "PAID") this.db.payments[idx].paidAt = new Date();
     const p = this.db.payments[idx];
-    return {
-      ...p,
-      status: p.status as PaymentStatus,
-    };
+    return { ...p, status: p.status as PaymentStatus };
   }
 }

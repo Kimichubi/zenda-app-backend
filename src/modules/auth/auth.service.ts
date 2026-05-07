@@ -23,28 +23,20 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const slug = dto.name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
 
     const user = await this.usersRepository.create({
       name: dto.name,
       email: dto.email,
       passwordHash,
       phone: dto.phone ?? "",
-      businessName: dto.businessName ?? dto.name,
-      slug,
     });
 
-    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan, (user as any).businessId);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, (user as any).businessId);
   }
 
   async login(dto: LoginDto) {
     const user = await this.validateCredentials(dto.email, dto.password);
-    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan, (user as any).businessId);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, (user as any).businessId);
   }
 
   async validateCredentials(email: string, password: string) {
@@ -66,10 +58,10 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException();
     }
-    return this.buildAuthResponse(user.id, user.email, user.name, user.role, user.plan, (user as any).businessId);
+    return this.buildAuthResponse(user.id, user.email, user.name, user.role, (user as any).businessId);
   }
 
-  buildAuthResponse(userId: string, email: string, name: string, role: string, plan: string, businessId?: string, rememberMe?: boolean) {
+  buildAuthResponse(userId: string, email: string, name: string, role: string, businessId?: string, rememberMe?: boolean) {
     const payload: Record<string, unknown> = { sub: userId, email };
     if (businessId) payload.businessId = businessId;
 
@@ -83,7 +75,23 @@ export class AuthService {
     );
 
     return {
-      user: { id: userId, name, email, role, plan },
+      user: { id: userId, name, email, role, businessId },
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  buildAdminAuthResponse(adminId: string, email: string, name: string) {
+    const payload = { sub: adminId, email, role: "PLATFORM_ADMIN" };
+
+    const accessToken = this.jwtService.sign(payload, { expiresIn: "8h" });
+    const refreshToken = this.jwtService.sign(
+      { sub: adminId, email, role: "PLATFORM_ADMIN", tokenType: "refresh" },
+      { expiresIn: "24h" },
+    );
+
+    return {
+      user: { id: adminId, name, email, role: "PLATFORM_ADMIN" },
       accessToken,
       refreshToken,
     };

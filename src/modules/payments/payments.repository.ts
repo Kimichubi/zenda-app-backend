@@ -16,8 +16,8 @@ export abstract class PaymentsRepository {
     pixCode: string;
   }): Promise<PaymentEntity>;
 
-  abstract findManyByUserId(
-    userId: string,
+  abstract findManyByBusinessId(
+    businessId: string,
     query?: FindPaymentsDto,
   ): Promise<{ data: PaymentEntity[]; total: number }>;
   abstract findById(id: string): Promise<PaymentEntity | null>;

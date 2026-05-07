@@ -8,16 +8,21 @@ import { SchedulesRepository } from "./schedules.repository";
 export class SchedulesInMemoryRepository implements SchedulesRepository {
   constructor(private readonly db: InMemoryDatabaseService) { }
 
-  async list(userId: string): Promise<ScheduleEntity[]> {
-    return this.db.schedules.filter((s) => s.userId === userId);
+  async listByBusinessId(businessId: string): Promise<ScheduleEntity[]> {
+    return this.db.schedules.filter((s) => s.businessId === businessId);
+  }
+
+  async listByProfessionalId(professionalId: string): Promise<ScheduleEntity[]> {
+    return this.db.schedules.filter((s) => s.professionalId === professionalId);
   }
 
   async upsert(
-    userId: string,
+    businessId: string,
+    professionalId: string,
     input: { weekday: number; startTime: string; endTime: string },
   ): Promise<ScheduleEntity> {
     const existing = this.db.schedules.find(
-      (s) => s.userId === userId && s.weekday === input.weekday,
+      (s) => s.businessId === businessId && s.professionalId === professionalId && s.weekday === input.weekday,
     );
 
     if (existing) {
@@ -28,7 +33,8 @@ export class SchedulesInMemoryRepository implements SchedulesRepository {
 
     const schedule = {
       id: makeId(),
-      userId,
+      businessId,
+      professionalId,
       weekday: input.weekday,
       startTime: input.startTime,
       endTime: input.endTime,

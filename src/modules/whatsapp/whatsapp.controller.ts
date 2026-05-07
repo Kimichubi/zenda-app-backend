@@ -54,7 +54,7 @@ export class WhatsappController {
   @Get('chat/sessions')
   async listSessions(@Request() req, @Query('limit') limit?: string) {
     const business = await this.prisma.business.findFirst({
-      where: { ownerId: req.user.id },
+      where: { staff: { some: { id: req.user.id, role: 'OWNER' } } },
     });
 
     if (!business) {
@@ -97,7 +97,7 @@ export class WhatsappController {
   @Get('chat/stats')
   async getChatStats(@Request() req) {
     const business = await this.prisma.business.findFirst({
-      where: { ownerId: req.user.id },
+      where: { staff: { some: { id: req.user.id, role: 'OWNER' } } },
     });
 
     if (!business) {

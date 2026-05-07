@@ -6,7 +6,7 @@ function mapAppointment(apt: any) {
   return {
     ...apt,
     clientName: apt.client?.name || "Cliente",
-    serviceName: apt.service?.name || "Serviço",
+    serviceName: apt.service?.name || "Servico",
   };
 }
 
@@ -17,12 +17,12 @@ export class DashboardService {
     private readonly paymentsRepository: PaymentsRepository,
   ) { }
 
-  async summary(userId: string) {
+  async summary(businessId: string, professionalId: string) {
     const [todayAppointments, upcomingAppointments, paymentsResponse] =
       await Promise.all([
-        this.appointmentsRepository.findTodayByUserId(userId),
-        this.appointmentsRepository.findUpcomingByUserId(userId),
-        this.paymentsRepository.findManyByUserId(userId, { limit: 1000 }),
+        this.appointmentsRepository.findTodayByProfessionalId(professionalId),
+        this.appointmentsRepository.findUpcomingByProfessionalId(professionalId),
+        this.paymentsRepository.findManyByBusinessId(businessId, { limit: 1000 }),
       ]);
 
     const payments = paymentsResponse.data;

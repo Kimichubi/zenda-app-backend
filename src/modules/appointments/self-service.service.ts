@@ -19,7 +19,7 @@ export class SelfServiceService {
   async generateRescheduleToken(appointmentId: string): Promise<string> {
     const token = this.randomToken(32);
     const expiry = new Date();
-    expiry.setDate(expiry.getDate() + 7); // 7 dias de validade
+    expiry.setDate(expiry.getDate() + 7);
 
     await this.prisma.appointment.update({
       where: { id: appointmentId },
@@ -35,7 +35,7 @@ export class SelfServiceService {
   async sendRescheduleLink(appointmentId: string): Promise<void> {
     const appointment = await this.prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { client: true, user: true, service: true },
+      include: { client: true, professional: true, service: true },
     });
 
     if (!appointment || !appointment.client) return;
@@ -46,7 +46,7 @@ export class SelfServiceService {
     const message = `Oi ${appointment.client.name}! ✂️\n\nSeu agendamento de *${appointment.service?.name ?? "Servico"}* esta marcado para *${appointment.date.toLocaleDateString("pt-BR")}* as *${appointment.startTime}*.\n\nPrecisa remarcar ou cancelar?\n${link}\n\nLink valido por 7 dias.`;
 
     await this.whatsappService.sendMessage(
-      appointment.userId,
+      appointment.businessId,
       appointment.client.phone,
       message,
     );
@@ -57,7 +57,7 @@ export class SelfServiceService {
   async validateToken(token: string) {
     const appointment = await this.prisma.appointment.findUnique({
       where: { rescheduleToken: token },
-      include: { client: true, user: true, service: true },
+      include: { client: true, professional: true, service: true },
     });
 
     if (!appointment) {
@@ -99,7 +99,7 @@ export class SelfServiceService {
     const date = new Date(newDate);
     const conflict = await this.prisma.appointment.findFirst({
       where: {
-        userId: appointment.userId,
+        professionalId: appointment.professionalId,
         date,
         startTime: newStartTime,
         NOT: { id: appointment.id },

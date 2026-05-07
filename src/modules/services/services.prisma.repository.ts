@@ -9,20 +9,18 @@ import { Prisma } from "@prisma/client";
 export class ServicesPrismaRepository implements ServicesRepository {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findManyByUserId(
-    userId: string,
+  async findManyByBusinessId(
+    businessId: string,
     query: FindServicesDto = {},
   ): Promise<{ data: ServiceEntity[]; total: number }> {
     const { search, minPrice, maxPrice, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.ServiceWhereInput = {
-      userId,
+      businessId,
       AND: [
         search
-          ? {
-              name: { contains: search, mode: "insensitive" },
-            }
+          ? { name: { contains: search, mode: "insensitive" } }
           : {},
         minPrice ? { price: { gte: minPrice } } : {},
         maxPrice ? { price: { lte: maxPrice } } : {},
@@ -39,10 +37,7 @@ export class ServicesPrismaRepository implements ServicesRepository {
       }),
     ]);
 
-    return {
-      data,
-      total,
-    };
+    return { data, total };
   }
 
   async findById(id: string): Promise<ServiceEntity | null> {
@@ -50,26 +45,26 @@ export class ServicesPrismaRepository implements ServicesRepository {
   }
 
   async create(
-    userId: string,
+    businessId: string,
     input: { name: string; duration: number; price: number },
   ): Promise<ServiceEntity> {
     return this.prisma.service.create({
-      data: { userId, name: input.name, duration: input.duration, price: input.price },
+      data: { businessId, name: input.name, duration: input.duration, price: input.price },
     });
   }
 
   async update(
     id: string,
-    userId: string,
+    businessId: string,
     input: { name?: string; duration?: number; price?: number },
   ): Promise<ServiceEntity | null> {
-    const existing = await this.prisma.service.findFirst({ where: { id, userId } });
+    const existing = await this.prisma.service.findFirst({ where: { id, businessId } });
     if (!existing) return null;
     return this.prisma.service.update({ where: { id }, data: input });
   }
 
-  async delete(id: string, userId: string): Promise<void> {
-    const existing = await this.prisma.service.findFirst({ where: { id, userId } });
+  async delete(id: string, businessId: string): Promise<void> {
+    const existing = await this.prisma.service.findFirst({ where: { id, businessId } });
     if (!existing) return;
     await this.prisma.service.delete({ where: { id } });
   }

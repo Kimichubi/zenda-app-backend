@@ -9,16 +9,24 @@ export interface UserRecord {
   email: string;
   passwordHash: string;
   phone: string;
-  businessName: string;
-  slug: string;
+  businessId: string | null;
   role: string;
+  baseCommission: number;
+  createdAt: Date;
+}
+
+export interface BusinessRecord {
+  id: string;
+  name: string;
+  slug: string;
   plan: string;
+  status: string;
   createdAt: Date;
 }
 
 export interface ServiceRecord {
   id: string;
-  userId: string;
+  businessId: string;
   name: string;
   duration: number;
   price: number;
@@ -27,7 +35,7 @@ export interface ServiceRecord {
 
 export interface ClientRecord {
   id: string;
-  userId: string;
+  businessId: string;
   name: string;
   phone: string;
   email: string | null;
@@ -38,7 +46,8 @@ export interface ClientRecord {
 
 export interface AppointmentRecord {
   id: string;
-  userId: string;
+  businessId: string;
+  professionalId: string;
   clientId: string;
   serviceId: string | null;
   date: Date;
@@ -62,7 +71,8 @@ export interface PaymentRecord {
 
 export interface ScheduleRecord {
   id: string;
-  userId: string;
+  businessId: string;
+  professionalId: string;
   weekday: number;
   startTime: string;
   endTime: string;
@@ -71,6 +81,7 @@ export interface ScheduleRecord {
 @Injectable()
 export class InMemoryDatabaseService {
   users: UserRecord[] = [];
+  businesses: BusinessRecord[] = [];
   services: ServiceRecord[] = [];
   clients: ClientRecord[] = [];
   appointments: AppointmentRecord[] = [];
