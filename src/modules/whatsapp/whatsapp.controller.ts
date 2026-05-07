@@ -18,10 +18,16 @@ export class WhatsappController {
   @Get('status')
   async getStatus(@Request() req) {
     const status = await this.whatsappService.getSessionStatus(req.user.id);
-    await this.prisma.user.update({
+    const user = await this.prisma.user.findUnique({
       where: { id: req.user.id },
-      data: { whatsappStatus: status } as any,
+      select: { businessId: true },
     });
+    if (user?.businessId) {
+      await this.prisma.business.update({
+        where: { id: user.businessId },
+        data: { whatsappStatus: status },
+      });
+    }
     return { status };
   }
 
@@ -41,10 +47,16 @@ export class WhatsappController {
   async logout(@Request() req) {
     const result = await this.whatsappService.logoutSession(req.user.id);
     if (result.success) {
-      await this.prisma.user.update({
+      const user = await this.prisma.user.findUnique({
         where: { id: req.user.id },
-        data: { whatsappStatus: 'DISCONNECTED' } as any,
+        select: { businessId: true },
       });
+      if (user?.businessId) {
+        await this.prisma.business.update({
+          where: { id: user.businessId },
+          data: { whatsappStatus: 'DISCONNECTED' },
+        });
+      }
     }
     return result;
   }
