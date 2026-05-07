@@ -19,7 +19,7 @@ export class UsersPrismaRepository implements UsersRepository {
       data: {
         ...input,
         role: "USER",
-        plan: "FREE",
+        plan: "ONBOARDING",
       },
     });
     return user as UserEntity;

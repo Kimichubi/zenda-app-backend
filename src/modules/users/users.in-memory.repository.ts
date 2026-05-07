@@ -23,7 +23,7 @@ export class UsersInMemoryRepository implements UsersRepository {
       id: makeId(),
       ...input,
       role: "USER",
-      plan: "FREE",
+      plan: "ONBOARDING",
       createdAt: new Date(),
     };
     this.db.users.push(record);

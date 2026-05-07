@@ -105,7 +105,7 @@ export class AdminController {
       totalUsers: users.length,
       proUsers: users.filter(u => u.plan === "PRO").length,
       enterpriseUsers: users.filter(u => u.plan === "ENTERPRISE").length,
-      freeUsers: users.filter(u => u.plan === "FREE").length,
+      onboardingUsers: users.filter(u => u.plan === "ONBOARDING").length,
       totalAppointments,
       totalRevenue: totalRevenue._sum.amount ?? 0,
       totalClients,

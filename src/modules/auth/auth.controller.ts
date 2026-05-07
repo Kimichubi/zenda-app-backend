@@ -100,8 +100,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch("complete-onboarding")
   async completeOnboarding(@Req() req: Request & { user: { id: string } }) {
-    await this.usersRepository.update(req.user.id, { plan: "FREE" as any });
-    return { success: true, plan: "FREE" };
+    return { success: true, plan: "ONBOARDING", message: "Sua conta sera ativada em breve pela equipe de suporte." };
   }
 
   @UseGuards(JwtAuthGuard)
