@@ -179,6 +179,93 @@ export class AdminController {
     );
   }
 
+  @Post("businesses/:id/access")
+  async accessBusiness(@Param("id") id: string) {
+    const business = await this.prisma.business.findUnique({
+      where: { id },
+      include: { staff: { where: { role: "OWNER" }, take: 1 } },
+    });
+
+    if (!business || business.staff.length === 0) {
+      return null;
+    }
+
+    const owner = business.staff[0];
+    return this.authService.buildAuthResponse(
+      owner.id, owner.email, owner.name, owner.role, owner.businessId ?? undefined, true,
+    );
+  }
+
+  @Get("monitoring")
+  async getMonitoring() {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const [
+      totalBusinesses,
+      activeBusinesses,
+      pendingBusinesses,
+      suspendedBusinesses,
+      totalUsers,
+      usersWithBusiness,
+      totalAppointments,
+      appointmentsThisMonth,
+      totalRevenue,
+      revenueThisMonth,
+      revenueLastMonth,
+      totalClients,
+      newBusinessesThisMonth,
+      recentAppointments,
+      businessesByPlan,
+    ] = await Promise.all([
+      this.prisma.business.count(),
+      this.prisma.business.count({ where: { status: "ACTIVE" } }),
+      this.prisma.business.count({ where: { status: "PENDING" } }),
+      this.prisma.business.count({ where: { status: "SUSPENDED" } }),
+      this.prisma.user.count(),
+      this.prisma.user.count({ where: { businessId: { not: null } } }),
+      this.prisma.appointment.count(),
+      this.prisma.appointment.count({ where: { createdAt: { gte: startOfMonth } } }),
+      this.prisma.payment.aggregate({ where: { status: "PAID" }, _sum: { amount: true } }),
+      this.prisma.payment.aggregate({ where: { status: "PAID", paidAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+      this.prisma.payment.aggregate({ where: { status: "PAID", paidAt: { gte: startOfLastMonth, lte: endOfLastMonth } }, _sum: { amount: true } }),
+      this.prisma.client.count(),
+      this.prisma.business.count({ where: { createdAt: { gte: startOfMonth } } }),
+      this.prisma.appointment.findMany({ orderBy: { createdAt: "desc" }, take: 10, include: { client: { select: { name: true } }, service: { select: { name: true } }, business: { select: { name: true } } } }),
+      this.prisma.business.groupBy({ by: ["plan"], _count: { plan: true } }),
+    ]);
+
+    const planDistribution: Record<string, number> = {};
+    for (const p of businessesByPlan) {
+      planDistribution[p.plan] = p._count.plan;
+    }
+
+    return {
+      totalBusinesses,
+      activeBusinesses,
+      pendingBusinesses,
+      suspendedBusinesses,
+      totalUsers,
+      usersWithBusiness,
+      totalAppointments,
+      appointmentsThisMonth,
+      totalRevenue: totalRevenue._sum.amount ?? 0,
+      revenueThisMonth: revenueThisMonth._sum.amount ?? 0,
+      revenueLastMonth: revenueLastMonth._sum.amount ?? 0,
+      totalClients,
+      newBusinessesThisMonth,
+      planDistribution,
+      recentActivity: recentAppointments.map(a => ({
+        id: a.id,
+        type: "appointment",
+        description: `${a.client?.name ?? "Cliente"} agendou ${a.service?.name ?? "um servico"} em ${a.business?.name}`,
+        date: a.createdAt,
+      })),
+    };
+  }
+
   // --- Onboarding / Business Management ---
 
   @Get("onboarding")
@@ -194,14 +281,34 @@ export class AdminController {
   }
 
   @Get("businesses")
-  async listBusinesses() {
-    return this.prisma.business.findMany({
+  async listBusinesses(
+    @Query("search") search?: string,
+    @Query("status") status?: string,
+    @Query("plan") plan?: string,
+  ) {
+    const where: any = {};
+    if (status) where.status = status;
+    if (plan) where.plan = plan;
+
+    let businesses = await this.prisma.business.findMany({
+      where,
       include: {
         staff: { select: { id: true, name: true, email: true, role: true } },
         _count: { select: { staff: true, products: true, reviews: true, appointments: true, clients: true } },
       },
       orderBy: { createdAt: "desc" },
     });
+
+    if (search) {
+      const q = search.toLowerCase();
+      businesses = businesses.filter(b =>
+        b.name.toLowerCase().includes(q) ||
+        b.slug.toLowerCase().includes(q) ||
+        b.staff.some(s => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
+      );
+    }
+
+    return businesses;
   }
 
   @Get("businesses/:id")
