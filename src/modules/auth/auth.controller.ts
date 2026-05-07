@@ -89,18 +89,52 @@ export class AuthController {
   @Get("validate")
   async validate(@Req() req: Request & { user: { id: string } }) {
     const user = await this.usersRepository.findById(req.user.id);
+
+    // Check business status if user has a business
+    let businessStatus: string | null = null;
+    let needsOnboarding = user?.plan === "ONBOARDING";
+    let businessName: string | null = null;
+
+    if ((user as any)?.businessId) {
+      const business = await this.prisma.business.findUnique({
+        where: { id: (user as any).businessId },
+        select: { status: true, name: true },
+      });
+      if (business) {
+        businessStatus = business.status;
+        businessName = business.name;
+        // If business is pending or suspended, block access
+        if (business.status === "PENDING") {
+          needsOnboarding = true;
+        }
+        if (business.status === "SUSPENDED") {
+          return {
+            valid: true,
+            userId: req.user.id,
+            plan: user?.plan ?? "ONBOARDING",
+            needsOnboarding: true,
+            suspended: true,
+            businessName,
+          };
+        }
+      }
+    }
+
     return {
       valid: true,
       userId: req.user.id,
       plan: user?.plan ?? "ONBOARDING",
-      needsOnboarding: user?.plan === "ONBOARDING",
+      businessId: (user as any)?.businessId ?? null,
+      businessName,
+      needsOnboarding,
+      businessStatus,
     };
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch("complete-onboarding")
   async completeOnboarding(@Req() req: Request & { user: { id: string } }) {
-    return { success: true, plan: "ONBOARDING", message: "Sua conta sera ativada em breve pela equipe de suporte." };
+    return { success: true, message: "Sua conta sera ativada em breve pela equipe de suporte." };
   }
 
   @UseGuards(JwtAuthGuard)

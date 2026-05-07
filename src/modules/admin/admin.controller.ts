@@ -123,4 +123,96 @@ export class AdminController {
       user.id, user.email, user.name, user.role, user.plan, (user as any).businessId,
     );
   }
+
+  // --- Business Management ---
+  @Get("businesses")
+  async listBusinesses() {
+    return this.prisma.business.findMany({
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        staff: { select: { id: true, name: true, email: true, role: true } },
+        _count: { select: { staff: true, products: true, reviews: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  @Get("businesses/:id")
+  async getBusiness(@Param("id") id: string) {
+    return this.prisma.business.findUnique({
+      where: { id },
+      include: {
+        owner: { select: { id: true, name: true, email: true, phone: true } },
+        staff: { select: { id: true, name: true, email: true, role: true, baseCommission: true } },
+        products: { select: { id: true, name: true, price: true, stock: true } },
+      },
+    });
+  }
+
+  @Post("businesses")
+  async createBusiness(@Body() body: { name: string; slug: string; ownerId: string; plan?: string }) {
+    const business = await this.prisma.business.create({
+      data: {
+        name: body.name,
+        slug: body.slug,
+        plan: (body.plan as any) || "PRO",
+        status: "ACTIVE",
+        ownerId: body.ownerId,
+      },
+    });
+
+    // Link the owner to the business
+    await this.prisma.user.update({
+      where: { id: body.ownerId },
+      data: { businessId: business.id, plan: body.plan as any || "PRO" },
+    });
+
+    return business;
+  }
+
+  @Patch("businesses/:id")
+  async updateBusiness(@Param("id") id: string, @Body() body: {
+    name?: string;
+    slug?: string;
+    plan?: string;
+    status?: string;
+    addStaff?: { name: string; email: string; commission?: number };
+  }) {
+    const updates: any = {};
+    if (body.name) updates.name = body.name;
+    if (body.slug) updates.slug = body.slug;
+    if (body.plan) updates.plan = body.plan;
+    if (body.status) updates.status = body.status;
+
+    const business = await this.prisma.business.update({ where: { id }, data: updates });
+
+    // If adding a staff member
+    if (body.addStaff) {
+      await this.prisma.user.create({
+        data: {
+          name: body.addStaff.name,
+          email: body.addStaff.email,
+          passwordHash: "temporary_hash",
+          role: "PROFESSIONAL",
+          businessId: id,
+          baseCommission: body.addStaff.commission ?? 30,
+          plan: business.plan,
+        },
+      });
+    }
+
+    return business;
+  }
+
+  @Post("businesses/:id/link-user")
+  async linkUserToBusiness(@Param("id") id: string, @Body() body: { userId: string }) {
+    const business = await this.prisma.business.findUnique({ where: { id } });
+    return this.prisma.user.update({
+      where: { id: body.userId },
+      data: {
+        businessId: id,
+        plan: business?.plan ?? "PRO",
+      },
+    });
+  }
 }

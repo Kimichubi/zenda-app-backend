@@ -12,6 +12,8 @@ model Business {
   owner          User           @relation("BusinessOwner", fields: [ownerId], references: [id])
   name           String
   slug           String         @unique
+  plan           BusinessPlan   @default(PRO)
+  status         BusinessStatus @default(ACTIVE)
   pixKey         String?
   loyaltyConfig  LoyaltyConfig?
   staff          User[]         @relation("BusinessStaff")
@@ -21,6 +23,17 @@ model Business {
   reviews        Review[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+}
+
+enum BusinessPlan {
+  PRO
+  ENTERPRISE
+}
+
+enum BusinessStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
 }
 
 model User {
