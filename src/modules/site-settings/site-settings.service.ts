@@ -23,7 +23,6 @@ export class SiteSettingsService {
       where: { slug },
       include: {
         siteSettings: true,
-        services: true,
         schedules: {
           include: { professional: { select: { id: true, name: true, role: true } } },
         },
@@ -32,6 +31,13 @@ export class SiteSettingsService {
         },
         products: {
           select: { id: true, name: true, price: true, sku: true },
+        },
+        services: {
+          include: {
+            professionals: {
+              select: { professionalId: true, customPrice: true, customDuration: true, isActive: true },
+            },
+          },
         },
       },
     });
@@ -50,7 +56,15 @@ export class SiteSettingsService {
         phone: '',
       },
       settings: business.siteSettings,
-      services: business.services,
+      services: business.services.map((s: any) => ({
+        ...s,
+        professionals: undefined,
+        professionalPricing: s.professionals?.filter((p: any) => p.isActive).map((p: any) => ({
+          professionalId: p.professionalId,
+          customPrice: p.customPrice,
+          customDuration: p.customDuration,
+        })) ?? [],
+      })),
       schedules: business.schedules,
       staff: business.staff,
       products: business.products,
