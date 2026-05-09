@@ -17,7 +17,26 @@ export class AvailabilityService {
     const weekday = targetDate.getDay();
     const schedule = await this.schedulesRepository.findByProfessionalAndWeekday(professionalId, weekday);
 
-    if (!schedule || !schedule.isActive) {
+    // Check for date-specific override
+    const override = await this.getScheduleOverride(professionalId, targetDate);
+
+    if (override && !override.isAvailable) {
+      return { date, professionalId, slots: [] };
+    }
+
+    const effectiveSchedule = override
+      ? {
+          ...schedule,
+          startTime: override.startTime ?? schedule?.startTime ?? "09:00",
+          endTime: override.endTime ?? schedule?.endTime ?? "18:00",
+          breakStart: override.breakStart ?? schedule?.breakStart,
+          breakEnd: override.breakEnd ?? schedule?.breakEnd,
+          isActive: true,
+          slotDuration: schedule?.slotDuration ?? 30,
+        }
+      : schedule;
+
+    if (!effectiveSchedule || !effectiveSchedule.isActive) {
       return { date, professionalId, slots: [] };
     }
 
@@ -32,7 +51,7 @@ export class AvailabilityService {
       }
     }
 
-    const slots = this.generateSlots(schedule, blockedSlots, appointments, serviceDuration);
+    const slots = this.generateSlots(effectiveSchedule as ScheduleEntity, blockedSlots, appointments, serviceDuration);
     return { date, professionalId, slots };
   }
 
@@ -45,21 +64,37 @@ export class AvailabilityService {
     const targetDate = new Date(date);
     const weekday = targetDate.getDay();
     const schedule = await this.schedulesRepository.findByProfessionalAndWeekday(professionalId, weekday);
+    const override = await this.getScheduleOverride(professionalId, targetDate);
 
-    if (!schedule || !schedule.isActive) {
+    if (override && !override.isAvailable) {
+      return { available: false, reason: "Professional not available on this day" };
+    }
+
+    const effectiveSchedule = override
+      ? {
+          ...schedule,
+          startTime: override.startTime ?? schedule?.startTime ?? "09:00",
+          endTime: override.endTime ?? schedule?.endTime ?? "18:00",
+          breakStart: override.breakStart ?? schedule?.breakStart,
+          breakEnd: override.breakEnd ?? schedule?.breakEnd,
+          isActive: true,
+        }
+      : schedule;
+
+    if (!effectiveSchedule || !effectiveSchedule.isActive) {
       return { available: false, reason: "Professional not working on this day" };
     }
 
     const startMinutes = this.timeToMinutes(startTime);
     const endMinutes = startMinutes + (serviceId ? await this.getServiceDuration(serviceId) : 30);
 
-    if (startMinutes < this.timeToMinutes(schedule.startTime) || endMinutes > this.timeToMinutes(schedule.endTime)) {
+    if (startMinutes < this.timeToMinutes(effectiveSchedule.startTime) || endMinutes > this.timeToMinutes(effectiveSchedule.endTime)) {
       return { available: false, reason: "Outside working hours" };
     }
 
-    if (schedule.breakStart && schedule.breakEnd) {
-      const breakStart = this.timeToMinutes(schedule.breakStart);
-      const breakEnd = this.timeToMinutes(schedule.breakEnd);
+    if (effectiveSchedule.breakStart && effectiveSchedule.breakEnd) {
+      const breakStart = this.timeToMinutes(effectiveSchedule.breakStart);
+      const breakEnd = this.timeToMinutes(effectiveSchedule.breakEnd);
       if (!(endMinutes <= breakStart || startMinutes >= breakEnd)) {
         return { available: false, reason: "Conflicts with break time" };
       }
@@ -94,6 +129,20 @@ export class AvailabilityService {
   private async getServiceDuration(serviceId: string): Promise<number> {
     const service = await this.servicesRepository.findById(serviceId);
     return service?.duration ?? 30;
+  }
+
+  private async getScheduleOverride(professionalId: string, date: Date): Promise<any | null> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    return this.prisma.professionalScheduleOverride.findFirst({
+      where: {
+        professionalId,
+        date: { gte: startOfDay, lt: endOfDay },
+      },
+    });
   }
 
   private async getBlockedSlots(professionalId: string, date: Date): Promise<BlockedSlotEntity[]> {

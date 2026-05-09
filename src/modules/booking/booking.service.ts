@@ -65,14 +65,38 @@ export class BookingService {
       },
     });
 
-    if (!schedule) {
-      return [];
-    }
-
+    // Check for date-specific override
     const dayStart = new Date(date);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(dayStart);
     dayEnd.setDate(dayEnd.getDate() + 1);
+
+    const override = await this.prisma.professionalScheduleOverride.findFirst({
+      where: {
+        professionalId: profId,
+        date: { gte: dayStart, lt: dayEnd },
+      },
+    });
+
+    if (override && !override.isAvailable) {
+      return [];
+    }
+
+    const effectiveSchedule = override
+      ? {
+          ...schedule,
+          startTime: override.startTime ?? schedule?.startTime ?? "09:00",
+          endTime: override.endTime ?? schedule?.endTime ?? "18:00",
+          breakStart: override.breakStart ?? schedule?.breakStart,
+          breakEnd: override.breakEnd ?? schedule?.breakEnd,
+          isActive: schedule?.isActive ?? true,
+          slotDuration: schedule?.slotDuration ?? 30,
+        }
+      : schedule;
+
+    if (!effectiveSchedule) {
+      return [];
+    }
 
     const existingAppointments = (
       await this.appointmentsRepository.findByWeek(profId, dayStart)
@@ -91,17 +115,17 @@ export class BookingService {
       },
     });
 
-    const [startH, startM] = schedule.startTime.split(":").map(Number);
-    const [endH, endM] = schedule.endTime.split(":").map(Number);
+    const [startH, startM] = effectiveSchedule.startTime.split(":").map(Number);
+    const [endH, endM] = effectiveSchedule.endTime.split(":").map(Number);
     const startMinutes = startH * 60 + startM;
     const endMinutes = endH * 60 + endM;
-    const slotDuration = schedule.slotDuration || 30;
+    const slotDuration = effectiveSchedule.slotDuration || 30;
 
-    const breakStartMinutes = schedule.breakStart
-      ? schedule.breakStart.split(":").map(Number).reduce((h, m) => h * 60 + m, 0)
+    const breakStartMinutes = effectiveSchedule.breakStart
+      ? effectiveSchedule.breakStart.split(":").map(Number).reduce((h, m) => h * 60 + m, 0)
       : null;
-    const breakEndMinutes = schedule.breakEnd
-      ? schedule.breakEnd.split(":").map(Number).reduce((h, m) => h * 60 + m, 0)
+    const breakEndMinutes = effectiveSchedule.breakEnd
+      ? effectiveSchedule.breakEnd.split(":").map(Number).reduce((h, m) => h * 60 + m, 0)
       : null;
 
     const bookedRanges = existingAppointments.map((a) => {
@@ -180,8 +204,21 @@ export class BookingService {
       });
     }
 
+    // Check for professional-specific pricing/duration
+    const serviceProfessional = await this.prisma.serviceProfessional.findUnique({
+      where: {
+        serviceId_professionalId: {
+          serviceId: dto.serviceId,
+          professionalId: profId,
+        },
+      },
+    });
+
+    const effectivePrice = serviceProfessional?.customPrice ?? service.price;
+    const effectiveDuration = serviceProfessional?.customDuration ?? service.duration;
+
     const [h, m] = dto.startTime.split(":").map(Number);
-    const endMinutes = h * 60 + m + service.duration;
+    const endMinutes = h * 60 + m + effectiveDuration;
     const endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
 
     await this.appointmentsRepository.create({
@@ -192,7 +229,7 @@ export class BookingService {
       date,
       startTime: dto.startTime,
       endTime,
-      price: service.price,
+      price: effectivePrice,
     });
 
     return { message: "Booking created successfully" };
