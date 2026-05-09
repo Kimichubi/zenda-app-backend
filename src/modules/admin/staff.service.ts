@@ -21,7 +21,7 @@ export class StaffService {
   async listStaff(businessId: string) {
     return this.prisma.user.findMany({
       where: { businessId },
-      select: { id: true, name: true, email: true, role: true, baseCommission: true },
+      select: { id: true, name: true, email: true, role: true, baseCommission: true, avatarPath: true, bio: true, phone: true, instagramUrl: true },
     });
   }
 
@@ -29,6 +29,21 @@ export class StaffService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { baseCommission: percentage },
+    });
+  }
+
+  async updateProfile(userId: string, businessId: string, data: { avatarPath?: string; bio?: string; phone?: string; instagramUrl?: string }) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, businessId } });
+    if (!user) throw new BadRequestException('Staff member not found');
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.avatarPath !== undefined && { avatarPath: data.avatarPath }),
+        ...(data.bio !== undefined && { bio: data.bio }),
+        ...(data.phone !== undefined && { phone: data.phone }),
+        ...(data.instagramUrl !== undefined && { instagramUrl: data.instagramUrl }),
+      },
     });
   }
 

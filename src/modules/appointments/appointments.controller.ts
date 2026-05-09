@@ -10,6 +10,7 @@ function mapAppointment(apt: any) {
     ...apt,
     clientName: apt.client?.name || "Cliente",
     serviceName: apt.service?.name || "Servico",
+    professionalName: apt.professional?.name || "",
   };
 }
 
@@ -36,8 +37,8 @@ export class AppointmentsController {
 
   @Get("week")
   async getByWeek(@Request() req, @Query("start") start: string) {
-    const professionalId = req.user.id;
-    const appointments = await this.appointmentsService.listWeekly(professionalId, start);
+    const businessId = requireBusinessId(req);
+    const appointments = await this.appointmentsService.listWeekly(businessId, start);
     return appointments.map(mapAppointment);
   }
 

@@ -13,22 +13,23 @@ import { ClientsModule } from "../clients/clients.module";
 import { UsersModule } from "../users/users.module";
 import { PaymentsModule } from "../payments/payments.module";
 import { WhatsappModule } from "../whatsapp/whatsapp.module";
+import { SchedulesModule } from "../schedules/schedules.module";
 
 const isTestEnv = process.env.NODE_ENV === "test";
 const repositoryProviders = isTestEnv
   ? [
-    {
-      provide: AppointmentsRepository,
-      useExisting: AppointmentsInMemoryRepository,
-    },
-  ]
+      {
+        provide: AppointmentsRepository,
+        useExisting: AppointmentsInMemoryRepository,
+      },
+    ]
   : [
-    AppointmentsPrismaRepository,
-    {
-      provide: AppointmentsRepository,
-      useExisting: AppointmentsPrismaRepository,
-    },
-  ];
+      AppointmentsPrismaRepository,
+      {
+        provide: AppointmentsRepository,
+        useExisting: AppointmentsPrismaRepository,
+      },
+    ];
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ const repositoryProviders = isTestEnv
     forwardRef(() => WhatsappModule),
     forwardRef(() => PaymentsModule),
     forwardRef(() => AdminModule),
+    SchedulesModule,
   ],
   controllers: [AppointmentsController, SelfServiceController],
   providers: [
@@ -49,4 +51,4 @@ const repositoryProviders = isTestEnv
   ],
   exports: [AppointmentsRepository, AppointmentsService, SelfServiceService],
 })
-export class AppointmentsModule { }
+export class AppointmentsModule {}

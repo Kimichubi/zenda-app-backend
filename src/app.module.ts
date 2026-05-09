@@ -18,6 +18,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 import { SiteSettingsModule } from "./modules/site-settings/site-settings.module";
 import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
 import { ReportsModule } from "./modules/reports/reports.module";
+import { UploadModule } from "./modules/uploads/upload.module";
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ReportsModule } from "./modules/reports/reports.module";
     SiteSettingsModule,
     WhatsappModule,
     ReportsModule,
+    UploadModule,
   ],
   providers: [
     {

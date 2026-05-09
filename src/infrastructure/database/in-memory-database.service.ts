@@ -76,6 +76,20 @@ export interface ScheduleRecord {
   weekday: number;
   startTime: string;
   endTime: string;
+  slotDuration: number;
+  isActive: boolean;
+  breakStart: string | null;
+  breakEnd: string | null;
+}
+
+export interface BlockedSlotRecord {
+  id: string;
+  businessId: string;
+  professionalId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  reason: string;
 }
 
 @Injectable()
@@ -87,4 +101,5 @@ export class InMemoryDatabaseService {
   appointments: AppointmentRecord[] = [];
   payments: PaymentRecord[] = [];
   schedules: ScheduleRecord[] = [];
+  blockedSlots: BlockedSlotRecord[] = [];
 }

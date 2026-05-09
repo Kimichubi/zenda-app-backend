@@ -116,7 +116,7 @@ export class AppointmentsPrismaRepository implements AppointmentsRepository {
         client: true,
         service: true,
         professional: { select: { id: true, name: true } },
-        business: { select: { id: true, name: true } },
+        business: { select: { id: true, name: true, pixKey: true } },
       }
     }) as any;
   }

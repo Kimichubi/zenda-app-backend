@@ -46,18 +46,19 @@ async function main() {
   await prisma.client.deleteMany();
   await prisma.business.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.platformAdmin.deleteMany();
   console.log('✅ Data cleaned.');
 
   const passwordHash = await hashPassword('password123');
 
-  // ── Platform Admin ──
+  // ── Platform Admin (as User) ──
   console.log('🛡️  Creating platform admin...');
-  const platformAdmin = await prisma.platformAdmin.create({
+  const platformAdmin = await prisma.user.create({
     data: {
       name: 'Gabriel (Admin)',
       email: 'gabriel@zenda.com',
       passwordHash,
+      phone: '',
+      role: 'PLATFORM_ADMIN',
     },
   });
   console.log('✅ Platform admin created.');

@@ -22,10 +22,16 @@ export class SchedulesPrismaRepository implements SchedulesRepository {
     });
   }
 
+  async findByProfessionalAndWeekday(professionalId: string, weekday: number): Promise<ScheduleEntity | null> {
+    return this.prisma.schedule.findFirst({
+      where: { professionalId, weekday },
+    });
+  }
+
   async upsert(
     businessId: string,
     professionalId: string,
-    input: { weekday: number; startTime: string; endTime: string },
+    input: { weekday: number; startTime: string; endTime: string; slotDuration?: number; isActive?: boolean; breakStart?: string; breakEnd?: string },
   ): Promise<ScheduleEntity> {
     return this.prisma.schedule.upsert({
       where: {
@@ -38,6 +44,10 @@ export class SchedulesPrismaRepository implements SchedulesRepository {
       update: {
         startTime: input.startTime,
         endTime: input.endTime,
+        slotDuration: input.slotDuration ?? 30,
+        isActive: input.isActive ?? true,
+        breakStart: input.breakStart,
+        breakEnd: input.breakEnd,
       },
       create: {
         businessId,
@@ -45,6 +55,10 @@ export class SchedulesPrismaRepository implements SchedulesRepository {
         weekday: input.weekday,
         startTime: input.startTime,
         endTime: input.endTime,
+        slotDuration: input.slotDuration ?? 30,
+        isActive: input.isActive ?? true,
+        breakStart: input.breakStart,
+        breakEnd: input.breakEnd,
       },
     });
   }

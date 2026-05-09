@@ -42,7 +42,7 @@ export class PaymentsService {
     if (business?.pixKey) {
       pixCode = PixGenerator.generate({
         key: business.pixKey,
-        name: business.name,
+        name: business.name?.substring(0, 25) || "Zenda",
         city: "SAO PAULO",
         amount: finalAmount,
         description: `Zenda: ${appointment.service?.name || 'Servico'}`,
@@ -82,7 +82,7 @@ export class PaymentsService {
     if (!pixCode?.startsWith("000201") && business?.pixKey) {
       pixCode = PixGenerator.generate({
         key: business.pixKey,
-        name: business.name,
+        name: business.name?.substring(0, 25) || "Zenda",
         city: "SAO PAULO",
         amount: payment.amount,
         description: `Zenda: ${appointment.service?.name || 'Servico'}`,

@@ -34,7 +34,8 @@ export class BookingService {
 
   async getServices(slug: string) {
     const business = await this.findBusinessBySlug(slug);
-    return this.servicesRepository.findManyByBusinessId(business.id);
+    const result = await this.servicesRepository.findManyByBusinessId(business.id);
+    return result.data;
   }
 
   async getAvailableSlots(slug: string, dateStr: string, serviceId: string, professionalId?: string) {
@@ -151,7 +152,7 @@ export class BookingService {
       throw new NotFoundException("Service not found");
     }
 
-    const profId = (dto as any).professionalId || (business.staff.length > 0 ? business.staff[0].id : null);
+    const profId = dto.professionalId || (business.staff.length > 0 ? business.staff[0].id : null);
     if (!profId) {
       throw new NotFoundException("No professional available");
     }

@@ -24,11 +24,12 @@ export class BookingController {
     @Param("slug") slug: string,
     @Query("date") date: string,
     @Query("serviceId") serviceId: string,
+    @Query("professionalId") professionalId?: string,
   ) {
     if (!date || !serviceId) {
       throw new NotFoundException("date and serviceId query params are required");
     }
-    return this.bookingService.getAvailableSlots(slug, date, serviceId);
+    return this.bookingService.getAvailableSlots(slug, date, serviceId, professionalId);
   }
 
   @Post(":slug")

@@ -28,7 +28,7 @@ export class SiteSettingsService {
           include: { professional: { select: { id: true, name: true, role: true } } },
         },
         staff: {
-          select: { id: true, name: true, role: true },
+          select: { id: true, name: true, role: true, avatarPath: true, bio: true, phone: true, instagramUrl: true },
         },
         products: {
           select: { id: true, name: true, price: true, sku: true },
@@ -40,11 +40,14 @@ export class SiteSettingsService {
       throw new NotFoundException('Business not found');
     }
 
+    const owner = business.staff.find(s => s.role === 'OWNER') ?? business.staff[0];
+
     return {
-      business: {
-        id: business.id,
-        name: business.name,
-        slug: business.slug,
+      barber: {
+        id: owner?.id ?? business.id,
+        name: owner?.name ?? business.name,
+        businessName: business.name,
+        phone: '',
       },
       settings: business.siteSettings,
       services: business.services,

@@ -6,6 +6,7 @@ import { ServicesRepository } from "../services/services.repository";
 import { WhatsappService } from "../../infrastructure/notifications/whatsapp.service";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { CommissionService } from "../admin/commission.service";
+import { AvailabilityService } from "../schedules/availability.service";
 
 @Injectable()
 export class AppointmentsService {
@@ -17,22 +18,35 @@ export class AppointmentsService {
     private readonly whatsappService: WhatsappService,
     private readonly prisma: PrismaService,
     private readonly commissionService: CommissionService,
-  ) { }
+    private readonly availabilityService: AvailabilityService,
+  ) {}
 
   async create(businessId: string, professionalId: string, dto: CreateAppointmentDto) {
     let endTime: string | undefined;
     let price: number | undefined;
+    let serviceDuration = 30;
 
     if (dto.serviceId) {
       const service = await this.servicesRepository.findById(dto.serviceId);
       if (!service) throw new NotFoundException("Service not found");
       price = service.price;
+      serviceDuration = service.duration;
 
       if (dto.startTime) {
         const [h, m] = dto.startTime.split(":").map(Number);
-        const endMinutes = h * 60 + m + service.duration;
+        const endMinutes = h * 60 + m + serviceDuration;
         endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
       }
+    }
+
+    if (dto.startTime && dto.professionalId) {
+      const effectiveProfessionalId = dto.professionalId || professionalId;
+      await this.availabilityService.validateBooking(
+        effectiveProfessionalId,
+        dto.date,
+        dto.startTime,
+        dto.serviceId,
+      );
     }
 
     const appointment = await this.appointmentsRepository.create({
@@ -105,11 +119,11 @@ export class AppointmentsService {
     return this.appointmentsRepository.findManyByBusinessId(businessId);
   }
 
-  async listWeekly(professionalId: string, startDate: string) {
+  async listWeekly(businessId: string, startDate: string) {
     const start = new Date(startDate);
     const end = new Date(start);
     end.setDate(end.getDate() + 7);
-    return this.appointmentsRepository.findRangeByBusinessId(professionalId, start, end);
+    return this.appointmentsRepository.findRangeByBusinessId(businessId, start, end);
   }
 
   async resendNotification(businessId: string, appointmentId: string): Promise<void> {

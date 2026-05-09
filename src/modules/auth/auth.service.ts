@@ -80,20 +80,4 @@ export class AuthService {
       refreshToken,
     };
   }
-
-  buildAdminAuthResponse(adminId: string, email: string, name: string) {
-    const payload = { sub: adminId, email, role: "PLATFORM_ADMIN" };
-
-    const accessToken = this.jwtService.sign(payload, { expiresIn: "8h" });
-    const refreshToken = this.jwtService.sign(
-      { sub: adminId, email, role: "PLATFORM_ADMIN", tokenType: "refresh" },
-      { expiresIn: "24h" },
-    );
-
-    return {
-      user: { id: adminId, name, email, role: "PLATFORM_ADMIN" },
-      accessToken,
-      refreshToken,
-    };
-  }
 }

@@ -1,4 +1,4 @@
-import { IsDateString, IsEmail, IsOptional, IsString } from "class-validator";
+import { IsDateString, IsEmail, IsOptional, IsString, IsUUID } from "class-validator";
 
 export class CreateBookingDto {
   @IsString()
@@ -19,4 +19,8 @@ export class CreateBookingDto {
   @IsOptional()
   @IsEmail()
   clientEmail?: string;
+
+  @IsOptional()
+  @IsUUID()
+  professionalId?: string;
 }

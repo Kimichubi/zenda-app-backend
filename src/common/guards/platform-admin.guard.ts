@@ -9,15 +9,16 @@ export class PlatformAdminGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.email) {
+    if (!user || !user.id) {
       throw new ForbiddenException("Acesso restrito ao administrador da plataforma");
     }
 
-    const admin = await this.prisma.platformAdmin.findUnique({
-      where: { email: user.email },
+    const userEntity = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { role: true },
     });
 
-    if (!admin) {
+    if (!userEntity || userEntity.role !== "PLATFORM_ADMIN") {
       throw new ForbiddenException("Acesso restrito ao administrador da plataforma");
     }
 

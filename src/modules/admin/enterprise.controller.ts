@@ -9,7 +9,7 @@ import { ProductsService } from './products.service';
 import { BusinessService } from './business.service';
 import { CategoriesService } from './categories.service';
 import { InventoryService } from './inventory.service';
-import { CreateStaffDto, UpdateCommissionDto } from './dto/staff.dto';
+import { CreateStaffDto, UpdateCommissionDto, UpdateStaffProfileDto } from './dto/staff.dto';
 import { CheckoutDto, CreateProductDto } from './dto/pos.dto';
 import { MarkCommissionsPaidDto, RedeemPointsDto, UpdateLoyaltyConfigDto } from './dto/enterprise.dto';
 
@@ -62,6 +62,11 @@ export class EnterpriseController {
   @Patch('staff/:id/commission')
   async updateStaffCommission(@Param('id') id: string, @Body() dto: UpdateCommissionDto) {
     return this.staffService.updateCommission(id, dto.percentage);
+  }
+
+  @Patch('staff/:id/profile')
+  async updateStaffProfile(@Param('id') id: string, @Request() req, @Body() dto: UpdateStaffProfileDto) {
+    return this.staffService.updateProfile(id, this.requireBusiness(req), dto);
   }
 
   @Delete('staff/:id')

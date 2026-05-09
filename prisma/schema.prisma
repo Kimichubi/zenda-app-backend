@@ -6,15 +6,6 @@ datasource db {
   provider = "postgresql"
 }
 
-model PlatformAdmin {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
 model Business {
   id             String         @id @default(uuid())
   name           String
@@ -33,6 +24,7 @@ model Business {
   categories     Category[]
   reviews        Review[]
   schedules      Schedule[]
+  blockedSlots   BlockedSlot[]
   siteSettings   SiteSettings?
   loyaltyConfig  LoyaltyConfig?
 
@@ -57,6 +49,9 @@ model User {
   email           String         @unique
   passwordHash    String
   phone           String         @default("")
+  avatarPath      String?
+  bio             String?
+  instagramUrl    String?
 
   businessId      String?
   business        Business?      @relation(fields: [businessId], references: [id])
@@ -67,12 +62,16 @@ model User {
   commissions     Commission[]
   sales           Sale[]
   schedules       Schedule[]
+  blockedSlots    BlockedSlot[]
+  scheduleOverrides ProfessionalScheduleOverride[]
+  services        ServiceProfessional[]
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
 
 enum UserRole {
+  PLATFORM_ADMIN
   OWNER
   MANAGER
   PROFESSIONAL
@@ -86,9 +85,24 @@ model Service {
   duration     Int
   price        Float
   appointments Appointment[]
+  professionals ServiceProfessional[]
   createdAt    DateTime      @default(now())
 
   @@index([businessId])
+}
+
+model ServiceProfessional {
+  id             String   @id @default(uuid())
+  serviceId      String
+  service        Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  professionalId String
+  professional   User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  customPrice    Float?
+  customDuration Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@unique([serviceId, professionalId])
 }
 
 model Client {
@@ -299,6 +313,7 @@ model Schedule {
   startTime      String
   endTime        String
   slotDuration   Int      @default(30)
+  isActive       Boolean  @default(true)
   breakStart     String?
   breakEnd       String?
 
@@ -306,15 +321,42 @@ model Schedule {
 }
 
 model BlockedSlot {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
+  businessId     String
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   professionalId String
+  professional   User         @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   date           DateTime
   startTime      String
   endTime        String
-  reason         String   @default("FOLGA")
-  createdAt      DateTime @default(now())
+  reason         BlockedReason @default(MANUAL_BLOCK)
+  createdAt      DateTime     @default(now())
 
   @@index([professionalId, date])
+}
+
+model ProfessionalScheduleOverride {
+  id             String   @id @default(uuid())
+  professionalId String
+  professional   User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  date           DateTime
+  startTime      String?
+  endTime        String?
+  isAvailable    Boolean  @default(true)
+  breakStart     String?
+  breakEnd       String?
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  @@unique([professionalId, date])
+  @@index([professionalId, date])
+}
+
+enum BlockedReason {
+  MANUAL_BLOCK
+  BREAK
+  HOLIDAY
+  OTHER
 }
 
 model Category {

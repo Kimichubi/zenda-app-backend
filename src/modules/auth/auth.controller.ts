@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Patch, Req, UseGuards, Logger, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Post, Patch, Req, UseGuards, Logger } from "@nestjs/common";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { AuthService } from "./auth.service";
@@ -6,7 +6,6 @@ import { UsersRepository } from "../users/users.repository";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { LoginDto } from "./dto/login.dto";
 import { SignupDto } from "./dto/signup.dto";
-import * as bcrypt from "bcrypt";
 
 @Controller("auth")
 export class AuthController {
@@ -27,13 +26,6 @@ export class AuthController {
   async login(@Body() body: any) {
     const user = await this.authService.validateCredentials(body.email, body.password);
 
-    if (body.rememberMe) {
-      const response = this.authService.buildAuthResponse(
-        user.id, user.email, user.name, user.role, (user as any).businessId, true,
-      );
-      return response;
-    }
-
     const code = this.generateCode();
     await this.prisma.verificationCode.create({
       data: {
@@ -49,29 +41,12 @@ export class AuthController {
       requires2FA: true,
       email: this.maskEmail(user.email),
       message: "Um codigo de verificacao foi enviado para seu email.",
+      rememberMe: body.rememberMe === true,
     };
   }
 
-  @Post("admin/login")
-  async adminLogin(@Body() body: { email: string; password: string }) {
-    const admin = await this.prisma.platformAdmin.findUnique({
-      where: { email: body.email },
-    });
-
-    if (!admin) {
-      throw new UnauthorizedException("Credenciais invalidas");
-    }
-
-    const isPasswordValid = await bcrypt.compare(body.password, admin.passwordHash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException("Credenciais invalidas");
-    }
-
-    return this.authService.buildAdminAuthResponse(admin.id, admin.email, admin.name);
-  }
-
   @Post("verify-login-code")
-  async verifyLoginCode(@Body() body: { email: string; code: string }) {
+  async verifyLoginCode(@Body() body: { email: string; code: string; rememberMe?: boolean }) {
     const user = await this.usersRepository.findByEmail(body.email);
     if (!user) {
       return { valid: false, message: "Email nao encontrado." };
@@ -97,63 +72,61 @@ export class AuthController {
     });
 
     return this.authService.buildAuthResponse(
-      user.id, user.email, user.name, user.role, (user as any).businessId,
+      user.id, user.email, user.name, user.role, (user as any).businessId, body.rememberMe,
     );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get("validate")
-  async validate(@Req() req: Request & { user: { id: string; email: string } }) {
+  async validate(@Req() req: Request & { user: { id: string } }) {
     const user = await this.usersRepository.findById(req.user.id);
-    if (user) {
-      const hasBusiness = !!user.businessId;
-      let businessStatus: string | null = null;
-      let businessName: string | null = null;
-
-      if (hasBusiness) {
-        const business = await this.prisma.business.findUnique({
-          where: { id: user.businessId! },
-          select: { status: true, name: true },
-        });
-        if (business) {
-          businessStatus = business.status;
-          businessName = business.name;
-        }
-      }
-
-      const needsOnboarding = !hasBusiness || businessStatus === "PENDING";
-      const suspended = businessStatus === "SUSPENDED";
-
-      return {
-        valid: true,
-        userId: req.user.id,
-        businessId: user.businessId ?? null,
-        businessName,
-        businessStatus,
-        role: user.role,
-        needsOnboarding,
-        suspended,
-      };
+    if (!user) {
+      return { valid: false };
     }
 
-    const admin = await this.prisma.platformAdmin.findUnique({
-      where: { email: req.user.email },
-    });
+    const isPlatformAdmin = user.role === "PLATFORM_ADMIN";
 
-    if (admin) {
+    if (isPlatformAdmin) {
       return {
         valid: true,
-        userId: admin.id,
+        userId: user.id,
         businessId: null,
         businessName: "Zenda Platform",
         businessStatus: null,
-        role: "PLATFORM_ADMIN",
+        role: user.role,
         needsOnboarding: false,
         suspended: false,
       };
     }
 
-    return { valid: false };
+    const hasBusiness = !!user.businessId;
+    let businessStatus: string | null = null;
+    let businessName: string | null = null;
+
+    if (hasBusiness) {
+      const business = await this.prisma.business.findUnique({
+        where: { id: user.businessId! },
+        select: { status: true, name: true },
+      });
+      if (business) {
+        businessStatus = business.status;
+        businessName = business.name;
+      }
+    }
+
+    const needsOnboarding = !hasBusiness || businessStatus === "PENDING";
+    const suspended = businessStatus === "SUSPENDED";
+
+    return {
+      valid: true,
+      userId: req.user.id,
+      businessId: user.businessId ?? null,
+      businessName,
+      businessStatus,
+      role: user.role,
+      needsOnboarding,
+      suspended,
+    };
   }
 
   @UseGuards(JwtAuthGuard)

@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsNumber, IsString, Min, Max } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, Min, Max } from 'class-validator';
 
 export class CreateStaffDto {
   @IsString()
@@ -20,4 +20,22 @@ export class UpdateCommissionDto {
   @Min(0)
   @Max(100)
   percentage: number;
+}
+
+export class UpdateStaffProfileDto {
+  @IsOptional()
+  @IsString()
+  avatarPath?: string;
+
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  instagramUrl?: string;
 }
