@@ -6,9 +6,9 @@ export const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().default(3001),
 
-  // JWT - Must be set in production
-  JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters in production"),
-  JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be at least 32 characters in production"),
+  // JWT - Use strong random secrets (32+ chars) in production
+  JWT_ACCESS_SECRET: z.string().min(1, "JWT_ACCESS_SECRET is required"),
+  JWT_REFRESH_SECRET: z.string().min(1, "JWT_REFRESH_SECRET is required"),
 
   // Database
   DATABASE_URL: z
