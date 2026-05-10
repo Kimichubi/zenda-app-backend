@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Patch, Req, UseGuards, Logger } from "@nestjs/common";
+import { Body, Controller, Get, Post, Patch, Req, UseGuards, Logger, UnauthorizedException, Headers } from "@nestjs/common";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { AuthService } from "./auth.service";
@@ -35,7 +35,7 @@ export class AuthController {
       },
     });
 
-    this.logger.log(`[2FA] Verification code for ${user.email}: ${code}`);
+    this.logger.log(`[2FA] Code sent to ${user.email}`);
 
     return {
       requires2FA: true,
@@ -135,10 +135,22 @@ export class AuthController {
     return { success: true, message: "Sua conta sera ativada em breve pela equipe de suporte." };
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post("refresh")
-  refresh(@Req() req: Request & { user: { id: string; email: string } }) {
-    return this.authService.refreshToken(req.user.id, req.user.email);
+  async refresh(@Headers("authorization") authHeader?: string) {
+    const oldRefreshToken = authHeader?.replace("Bearer ", "");
+
+    if (!oldRefreshToken) {
+      throw new UnauthorizedException("Token nao fornecido");
+    }
+
+    return this.authService.rotateRefreshToken(oldRefreshToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("logout")
+  async logout(@Req() req: Request & { user: { id: string } }) {
+    await this.authService.revokeAllUserTokens(req.user.id);
+    return { success: true, message: "Sessao encerrada com sucesso" };
   }
 
   private generateCode(): string {

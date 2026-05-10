@@ -19,6 +19,9 @@ import { SiteSettingsModule } from "./modules/site-settings/site-settings.module
 import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { UploadModule } from "./modules/uploads/upload.module";
+import { PosModule } from "./modules/pos/pos.module";
+import { PixProviderModule } from "./modules/payments/pix-provider.module";
+import { HealthModule } from "./modules/health/health.module";
 
 @Module({
   imports: [
@@ -26,12 +29,26 @@ import { UploadModule } from "./modules/uploads/upload.module";
       isGlobal: true,
       validate: (env) => envSchema.parse(env),
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        name: "short",
+        ttl: 1000,
+        limit: 5,
+      },
+      {
+        name: "medium",
+        ttl: 10000,
+        limit: 20,
+      },
+      {
+        name: "long",
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     ScheduleModule.forRoot(),
     DatabaseModule,
+    PixProviderModule,
     AuthModule,
     UsersModule,
     ClientsModule,
@@ -46,6 +63,8 @@ import { UploadModule } from "./modules/uploads/upload.module";
     WhatsappModule,
     ReportsModule,
     UploadModule,
+    PosModule,
+    HealthModule,
   ],
   providers: [
     {

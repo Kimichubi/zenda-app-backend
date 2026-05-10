@@ -4,30 +4,43 @@ export const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
-  PORT: z.coerce.number().default(3000),
-  JWT_ACCESS_SECRET: z.string().min(10).default("agendapix-access-secret"),
-  JWT_REFRESH_SECRET: z.string().min(10).default("agendapix-refresh-secret"),
+  PORT: z.coerce.number().default(3001),
+
+  // JWT - Must be set in production
+  JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters in production"),
+  JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be at least 32 characters in production"),
+
+  // Database
   DATABASE_URL: z
     .string()
     .url()
-    .default("postgresql://postgres:postgres@localhost:5432/agendapix"),
-  REDIS_URL: z.string().url().default("redis://localhost:6379"),
-  FRONTEND_URL: z.string().url().default("http://localhost:5173"),
-  
-  // WhatsApp Cloud API (Deprecated)
-  WA_PHONE_NUMBER_ID: z.string().optional(),
-  WA_ACCESS_TOKEN: z.string().optional(),
-  WA_API_VERSION: z.string().default("v18.0"),
+    .default("postgresql://postgres:postgres@localhost:5433/postgres?schema=public"),
 
-  // WAHA
-  WHATSAPP_BASE_URL: z.string().url().default("http://localhost:3001"),
-  WHATSAPP_API_KEY: z.string().optional(),
-  WHATSAPP_SESSION: z.string().default("default"),
+  // Redis
+  REDIS_URL: z.string().url().default("redis://localhost:6380"),
 
-  // AI (Qwen3)
+  // Frontend
+  FRONTEND_URL: z.string().url().default("http://localhost:5174"),
+
+  // PIX Provider
+  PIX_PROVIDER: z
+    .enum(["brcode", "mercadopago", "asaas", "stripe", "pagarme", "gerencianet"])
+    .default("brcode"),
+
+  // WhatsApp (WAHA)
+  WHATSAPP_BASE_URL: z.string().url().default("http://localhost:3002"),
+  WAHA_API_KEY: z.string().optional(),
+
+  // AI Provider
+  AI_PROVIDER: z.enum(["gemini", "qwen", "default"]).default("default"),
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_API_URL: z.string().url().optional(),
+  OPENROUTER_MODEL: z.string().optional(),
+  GEMINAI_API_KEY: z.string().optional(),
+  GEMINAI_MODEL: z.string().optional(),
   QWEN_API_KEY: z.string().optional(),
-  QWEN_API_URL: z.string().url().default("https://api.qwen.ai/v1/chat/completions"),
-  QWEN_MODEL: z.string().default("qwen3-8b"),
+  QWEN_API_URL: z.string().url().optional(),
+  QWEN_MODEL: z.string().optional(),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;
