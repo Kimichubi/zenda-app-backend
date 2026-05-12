@@ -1,8 +1,10 @@
 import { ConflictException, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { AuthService } from "../auth.service";
 import { UsersRepository } from "../../users/users.repository";
+import { PrismaService } from "../../../infrastructure/database/prisma.service";
 import * as bcrypt from "bcrypt";
 
 jest.mock("bcrypt", () => ({
@@ -20,6 +22,15 @@ describe("AuthService", () => {
   const jwtService = {
     sign: jest.fn().mockReturnValue("token"),
   };
+  const prismaService = {
+    refreshToken: {
+      create: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({}),
+    },
+  };
+  const configService = {
+    getOrThrow: jest.fn().mockReturnValue("test-secret"),
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -32,6 +43,14 @@ describe("AuthService", () => {
         {
           provide: UsersRepository,
           useValue: usersRepository,
+        },
+        {
+          provide: PrismaService,
+          useValue: prismaService,
+        },
+        {
+          provide: ConfigService,
+          useValue: configService,
         },
       ],
     }).compile();
@@ -73,17 +92,14 @@ describe("AuthService", () => {
         email: "joao@test.com",
         password: "123",
         phone: "11999999999",
-        businessName: "My Biz",
       });
 
-      expect(bcrypt.hash).toHaveBeenCalledWith("123", 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith("123", 12);
       expect(usersRepository.create).toHaveBeenCalledWith({
         name: "João Silva!",
         email: "joao@test.com",
         passwordHash: "hashed-password",
         phone: "11999999999",
-        businessName: "My Biz",
-        slug: "joao-silva", // Check slug generation
       });
 
       expect(result.accessToken).toBeDefined();
@@ -113,7 +129,6 @@ describe("AuthService", () => {
 
       expect(usersRepository.create).toHaveBeenCalledWith(expect.objectContaining({
         phone: "",
-        businessName: "Joao",
       }));
     });
   });
@@ -158,7 +173,6 @@ describe("AuthService", () => {
       expect(result.user.email).toBe("x@test.com");
       expect(result.user.name).toBe("Test");
       expect(result.user.role).toBe("USER");
-      expect(result.user.plan).toBe("FREE");
     });
   });
 

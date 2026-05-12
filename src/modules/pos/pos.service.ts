@@ -116,6 +116,20 @@ export class PosService {
     });
   }
 
+  async listProducts(businessId: string) {
+    return this.prisma.product.findMany({
+      where: { businessId },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        stock: true,
+        sku: true,
+      },
+      orderBy: { name: "asc" },
+    });
+  }
+
   async createAppointment(businessId: string, dto: CreatePosAppointmentDto) {
     const service = await this.prisma.service.findFirst({
       where: { id: dto.serviceId, businessId },
@@ -129,11 +143,18 @@ export class PosService {
 
     if (!professional) throw new NotFoundException("Profissional nao encontrado");
 
-    const client = await this.prisma.client.findFirst({
-      where: { id: dto.clientId, businessId },
-    });
+    let clientId = dto.clientId;
 
-    if (!client) throw new NotFoundException("Cliente nao encontrado");
+    if (!clientId) {
+      const avulso = await this.findOrCreateAvulsoClient(businessId);
+      clientId = avulso.id;
+    } else {
+      const client = await this.prisma.client.findFirst({
+        where: { id: clientId, businessId },
+      });
+
+      if (!client) throw new NotFoundException("Cliente nao encontrado");
+    }
 
     const appointmentDate = dto.date ? new Date(dto.date) : new Date();
     appointmentDate.setHours(0, 0, 0, 0);
@@ -147,7 +168,7 @@ export class PosService {
       data: {
         businessId,
         professionalId: dto.professionalId,
-        clientId: dto.clientId,
+        clientId,
         serviceId: dto.serviceId,
         date: appointmentDate,
         startTime,
@@ -385,5 +406,25 @@ export class PosService {
     const newHours = Math.floor(totalMinutes / 60) % 24;
     const newMinutes = totalMinutes % 60;
     return `${newHours.toString().padStart(2, "0")}:${newMinutes.toString().padStart(2, "0")}`;
+  }
+
+  private async findOrCreateAvulsoClient(businessId: string) {
+    const existing = await this.prisma.client.findFirst({
+      where: { businessId, phone: "avulso" },
+    });
+
+    if (existing) return existing;
+
+    return this.prisma.client.create({
+      data: {
+        businessId,
+        name: "Avulso",
+        phone: "avulso",
+        email: "",
+        status: "ACTIVE",
+        tags: [],
+        credit: { create: { balance: 0 } },
+      },
+    });
   }
 }

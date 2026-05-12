@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Request, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { PlatformAdminGuard } from "../../common/guards/platform-admin.guard";
 import { UsersRepository } from "../users/users.repository";
@@ -170,29 +170,39 @@ export class AdminController {
   }
 
   @Post("impersonate/:userId")
-  async impersonate(@Param("userId") userId: string) {
-    const user = await this.usersRepository.findById(userId);
-    if (!user) return null;
+  async impersonate(@Param("userId") userId: string, @Request() req: any) {
+    const adminUser = req.user;
+    const targetUser = await this.usersRepository.findById(userId);
+    if (!targetUser) return null;
 
     return this.authService.buildAuthResponse(
-      user.id, user.email, user.name, user.role, (user as any).businessId,
+      adminUser.id,
+      adminUser.email,
+      adminUser.name,
+      adminUser.role,
+      undefined,
+      false,
+      targetUser.businessId ?? undefined,
     );
   }
 
   @Post("businesses/:id/access")
-  async accessBusiness(@Param("id") id: string) {
+  async accessBusiness(@Param("id") id: string, @Request() req: any) {
+    const adminUser = req.user;
     const business = await this.prisma.business.findUnique({
       where: { id },
-      include: { staff: { where: { role: "OWNER" }, take: 1 } },
     });
 
-    if (!business || business.staff.length === 0) {
-      return null;
-    }
+    if (!business) return null;
 
-    const owner = business.staff[0];
     return this.authService.buildAuthResponse(
-      owner.id, owner.email, owner.name, owner.role, owner.businessId ?? undefined, true,
+      adminUser.id,
+      adminUser.email,
+      adminUser.name,
+      adminUser.role,
+      undefined,
+      false,
+      business.id,
     );
   }
 

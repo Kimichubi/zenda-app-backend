@@ -6,7 +6,7 @@ export const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().default(3001),
 
-  // JWT - Use strong random secrets (32+ chars) in production
+  // JWT - Minimum 32 chars enforced in production
   JWT_ACCESS_SECRET: z.string().min(1, "JWT_ACCESS_SECRET is required"),
   JWT_REFRESH_SECRET: z.string().min(1, "JWT_REFRESH_SECRET is required"),
 
@@ -41,6 +41,23 @@ export const envSchema = z.object({
   QWEN_API_KEY: z.string().optional(),
   QWEN_API_URL: z.string().url().optional(),
   QWEN_MODEL: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.NODE_ENV === "production") {
+    if (data.JWT_ACCESS_SECRET.length < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "JWT_ACCESS_SECRET must be at least 32 characters in production",
+        path: ["JWT_ACCESS_SECRET"],
+      });
+    }
+    if (data.JWT_REFRESH_SECRET.length < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "JWT_REFRESH_SECRET must be at least 32 characters in production",
+        path: ["JWT_REFRESH_SECRET"],
+      });
+    }
+  }
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

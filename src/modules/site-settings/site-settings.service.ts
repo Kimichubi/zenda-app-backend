@@ -53,7 +53,7 @@ export class SiteSettingsService {
         id: owner?.id ?? business.id,
         name: owner?.name ?? business.name,
         businessName: business.name,
-        phone: '',
+        phone: owner?.phone ?? '',
       },
       settings: business.siteSettings,
       services: business.services.map((s: any) => ({

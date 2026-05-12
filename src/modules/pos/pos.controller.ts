@@ -49,6 +49,11 @@ export class PosController {
     return this.posService.listServices(requireBusinessId(req));
   }
 
+  @Get("products")
+  listProducts(@Request() req: any) {
+    return this.posService.listProducts(requireBusinessId(req));
+  }
+
   @Post("appointments")
   createAppointment(@Request() req: any, @Body() dto: CreatePosAppointmentDto) {
     return this.posService.createAppointment(requireBusinessId(req), dto);

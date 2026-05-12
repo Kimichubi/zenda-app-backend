@@ -12,7 +12,8 @@ describe("JwtStrategy", () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue("test-secret"),
+            get: jest.fn().mockReturnValue("development"),
+            getOrThrow: jest.fn().mockReturnValue("test-secret"),
           },
         },
       ],
@@ -34,6 +35,10 @@ describe("JwtStrategy", () => {
         id: "user-id",
         sub: "user-id",
         email: "test@test.com",
+        businessId: null,
+        impersonatedBusinessId: null,
+        isImpersonating: false,
+        role: null,
       });
     });
   });

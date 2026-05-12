@@ -4,8 +4,9 @@ export class CreatePosAppointmentDto {
   @IsString()
   professionalId: string;
 
+  @IsOptional()
   @IsString()
-  clientId: string;
+  clientId?: string;
 
   @IsString()
   serviceId: string;

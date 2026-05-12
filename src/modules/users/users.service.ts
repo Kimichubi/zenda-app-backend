@@ -9,16 +9,28 @@ export class UsersService {
     private readonly prisma: PrismaService,
   ) { }
 
-  async me(userId: string) {
+  async me(userId: string, requestContext?: { isImpersonating?: boolean; impersonatedBusinessId?: string | null; businessId?: string | null }) {
     const user = await this.usersRepository.findById(userId);
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    const isImpersonating = requestContext?.isImpersonating ?? false;
+    const effectiveBusinessId = requestContext?.businessId ?? user.businessId ?? null;
+
     let business: { name: string; slug: string; pixKey: string | null } | null = null;
-    if (user.businessId) {
+    let impersonatedBusiness: { name: string; slug: string; pixKey: string | null } | null = null;
+
+    if (effectiveBusinessId) {
       business = await this.prisma.business.findUnique({
-        where: { id: user.businessId },
+        where: { id: effectiveBusinessId },
+        select: { name: true, slug: true, pixKey: true },
+      });
+    }
+
+    if (isImpersonating && requestContext?.impersonatedBusinessId) {
+      impersonatedBusiness = await this.prisma.business.findUnique({
+        where: { id: requestContext.impersonatedBusinessId },
         select: { name: true, slug: true, pixKey: true },
       });
     }
@@ -28,12 +40,17 @@ export class UsersService {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      bio: user.bio,
+      instagramUrl: user.instagramUrl,
       role: user.role,
-      businessId: user.businessId,
+      businessId: effectiveBusinessId,
       baseCommission: user.baseCommission,
       businessName: business?.name ?? null,
       slug: business?.slug ?? null,
       pixKey: business?.pixKey ?? null,
+      isImpersonating,
+      impersonatedBusinessId: requestContext?.impersonatedBusinessId ?? null,
+      impersonatedBusinessName: impersonatedBusiness?.name ?? null,
       createdAt: user.createdAt,
     };
   }
@@ -43,6 +60,8 @@ export class UsersService {
     input: {
       name?: string;
       phone?: string;
+      bio?: string;
+      instagramUrl?: string;
       businessName?: string;
       slug?: string;
       pixKey?: string;
@@ -53,9 +72,11 @@ export class UsersService {
       throw new NotFoundException("User not found");
     }
 
-    const userData: { name?: string; phone?: string } = {};
+    const userData: { name?: string; phone?: string; bio?: string; instagramUrl?: string } = {};
     if (input.name !== undefined) userData.name = input.name;
     if (input.phone !== undefined) userData.phone = input.phone;
+    if (input.bio !== undefined) userData.bio = input.bio;
+    if (input.instagramUrl !== undefined) userData.instagramUrl = input.instagramUrl;
 
     if (Object.keys(userData).length > 0) {
       await this.usersRepository.update(userId, userData);

@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { AuthModule } from "./modules/auth/auth.module";
 import { AppointmentsModule } from "./modules/appointments/appointments.module";
@@ -13,6 +13,7 @@ import { SchedulesModule } from "./modules/schedules/schedules.module";
 import { ServicesModule } from "./modules/services/services.module";
 import { UsersModule } from "./modules/users/users.module";
 import { DatabaseModule } from "./infrastructure/database/database.module";
+import { LoggingModule } from "./infrastructure/logging/logging.module";
 import { envSchema } from "./infrastructure/config/env.validation";
 import { AdminModule } from "./modules/admin/admin.module";
 import { SiteSettingsModule } from "./modules/site-settings/site-settings.module";
@@ -22,6 +23,8 @@ import { UploadModule } from "./modules/uploads/upload.module";
 import { PosModule } from "./modules/pos/pos.module";
 import { PixProviderModule } from "./modules/payments/pix-provider.module";
 import { HealthModule } from "./modules/health/health.module";
+import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
+import { HttpLoggingInterceptor } from "./infrastructure/logging/http-logging.interceptor";
 
 @Module({
   imports: [
@@ -48,6 +51,7 @@ import { HealthModule } from "./modules/health/health.module";
     ]),
     ScheduleModule.forRoot(),
     DatabaseModule,
+    LoggingModule,
     PixProviderModule,
     AuthModule,
     UsersModule,
@@ -71,6 +75,14 @@ import { HealthModule } from "./modules/health/health.module";
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpLoggingInterceptor,
+    },
   ],
 })
-export class AppModule { }
+export class AppModule {}

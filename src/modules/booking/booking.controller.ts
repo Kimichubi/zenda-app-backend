@@ -32,6 +32,11 @@ export class BookingController {
     return this.bookingService.getAvailableSlots(slug, date, serviceId, professionalId);
   }
 
+  @Get(":slug/today")
+  getTodaySlots(@Param("slug") slug: string) {
+    return this.bookingService.getTodaySlots(slug);
+  }
+
   @Post(":slug")
   createBooking(
     @Param("slug") slug: string,

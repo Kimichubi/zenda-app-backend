@@ -15,9 +15,7 @@ import { DatabaseModule } from "../../infrastructure/database/database.module";
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret:
-          configService.get<string>("JWT_ACCESS_SECRET") ??
-          "agendapix-access-secret",
+        secret: configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
       }),
     }),
   ],

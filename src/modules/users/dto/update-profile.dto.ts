@@ -11,6 +11,14 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  bio?: string;
+
+  @IsOptional()
+  @IsString()
+  instagramUrl?: string;
+
+  @IsOptional()
+  @IsString()
   businessName?: string;
 
   @IsOptional()

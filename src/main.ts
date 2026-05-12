@@ -1,8 +1,6 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
-import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
-import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { ConfigService } from "@nestjs/config";
 import helmet from "helmet";
 import { join } from "path";
@@ -52,8 +50,6 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor());
 
   app.setGlobalPrefix("", { exclude: [] });
 

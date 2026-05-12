@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Patch, Req, UseGuards, Logger, UnauthorizedException, Headers } from "@nestjs/common";
 import { Request } from "express";
+import { randomInt } from "crypto";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { AuthService } from "./auth.service";
 import { UsersRepository } from "../users/users.repository";
@@ -23,8 +24,8 @@ export class AuthController {
   }
 
   @Post("login")
-  async login(@Body() body: any) {
-    const user = await this.authService.validateCredentials(body.email, body.password);
+  async login(@Body() dto: LoginDto) {
+    const user = await this.authService.validateCredentials(dto.email, dto.password);
 
     const code = this.generateCode();
     await this.prisma.verificationCode.create({
@@ -41,7 +42,7 @@ export class AuthController {
       requires2FA: true,
       email: this.maskEmail(user.email),
       message: "Um codigo de verificacao foi enviado para seu email.",
-      rememberMe: body.rememberMe === true,
+      rememberMe: dto.rememberMe === true,
     };
   }
 
@@ -78,24 +79,48 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get("validate")
-  async validate(@Req() req: Request & { user: { id: string } }) {
+  async validate(@Req() req: Request & { user: { id: string; businessId?: string; isImpersonating?: boolean; impersonatedBusinessId?: string; role?: string } }) {
     const user = await this.usersRepository.findById(req.user.id);
     if (!user) {
       return { valid: false };
     }
 
     const isPlatformAdmin = user.role === "PLATFORM_ADMIN";
+    const isImpersonating = req.user.isImpersonating === true;
+    const impersonatedBusinessId = req.user.impersonatedBusinessId ?? null;
 
-    if (isPlatformAdmin) {
+    if (isPlatformAdmin && !isImpersonating) {
       return {
         valid: true,
         userId: user.id,
         businessId: null,
+        impersonatedBusinessId: null,
         businessName: "Zenda Platform",
         businessStatus: null,
         role: user.role,
+        isImpersonating: false,
         needsOnboarding: false,
         suspended: false,
+      };
+    }
+
+    if (isImpersonating && impersonatedBusinessId) {
+      const impersonatedBusiness = await this.prisma.business.findUnique({
+        where: { id: impersonatedBusinessId },
+        select: { status: true, name: true },
+      });
+
+      return {
+        valid: true,
+        userId: user.id,
+        businessId: impersonatedBusinessId,
+        impersonatedBusinessId,
+        businessName: impersonatedBusiness?.name ?? null,
+        businessStatus: impersonatedBusiness?.status ?? null,
+        role: user.role,
+        isImpersonating: true,
+        needsOnboarding: false,
+        suspended: impersonatedBusiness?.status === "SUSPENDED",
       };
     }
 
@@ -121,9 +146,11 @@ export class AuthController {
       valid: true,
       userId: req.user.id,
       businessId: user.businessId ?? null,
+      impersonatedBusinessId: null,
       businessName,
       businessStatus,
       role: user.role,
+      isImpersonating: false,
       needsOnboarding,
       suspended,
     };
@@ -153,8 +180,17 @@ export class AuthController {
     return { success: true, message: "Sessao encerrada com sucesso" };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Post("exit-impersonation")
+  async exitImpersonation(@Req() req: Request & { user: { id: string; email: string; isImpersonating?: boolean } }) {
+    if (!req.user.isImpersonating) {
+      throw new UnauthorizedException("Voce nao esta impersonando outra conta");
+    }
+    return this.authService.exitImpersonation(req.user.id, req.user.email);
+  }
+
   private generateCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 999999).toString();
   }
 
   private maskEmail(email: string): string {

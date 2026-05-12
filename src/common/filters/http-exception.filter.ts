@@ -4,17 +4,22 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
 } from "@nestjs/common";
+import { Request, Response } from "express";
+import { LoggingService } from "../../infrastructure/logging/logging.service";
+import { RequestContext } from "../../infrastructure/logging/request-context";
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(HttpExceptionFilter.name);
+  constructor(
+    private readonly loggingService: LoggingService,
+    private readonly requestContext: RequestContext,
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
-    const request = ctx.getRequest();
-    const response = ctx.getResponse();
+    const request = ctx.getRequest<Request>();
+    const response = ctx.getResponse<Response>();
 
     const method = request?.method ?? "UNKNOWN";
     const url = request?.url ?? "UNKNOWN";
@@ -24,15 +29,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    if (status >= 500) {
-      const stack =
-        exception instanceof Error ? exception.stack : String(exception);
-      this.logger.error(`${method} ${url} - ${status}\n${stack}`);
-    } else if (status >= 400) {
-      this.logger.warn(
-        `${method} ${url} - ${status} - ${this.extractMessage(exception)}`,
-      );
-    }
+    const duration = this.requestContext.getRequestDuration();
+
+    const errorDetail = this.extractErrorDetail(exception);
+
+    this.loggingService.logError({
+      method,
+      url,
+      statusCode: status,
+      error: errorDetail,
+      durationMs: duration ?? 0,
+    });
 
     let responseBody: Record<string, unknown>;
 
@@ -40,10 +47,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const exceptionResponse = exception.getResponse();
       responseBody = {
         ...(typeof exceptionResponse === "object"
-          ? exceptionResponse
+          ? (exceptionResponse as Record<string, unknown>)
           : { message: String(exceptionResponse) }),
         timestamp: new Date().toISOString(),
         path: url,
+        correlationId: this.requestContext.getCorrelationId(),
       };
     } else {
       responseBody = {
@@ -52,22 +60,34 @@ export class HttpExceptionFilter implements ExceptionFilter {
         error: "Internal Server Error",
         timestamp: new Date().toISOString(),
         path: url,
+        correlationId: this.requestContext.getCorrelationId(),
       };
     }
 
     response.status(status).json(responseBody);
   }
 
-  private extractMessage(exception: unknown): string {
-    if (exception instanceof HttpException) {
-      const res = exception.getResponse();
-      if (typeof res === "object" && res !== null && "message" in res) {
-        return Array.isArray(res.message)
-          ? res.message.join(", ")
-          : String(res.message);
-      }
-      return exception.message;
+  private extractErrorDetail(exception: unknown): {
+    name: string;
+    message: string;
+    stack?: string;
+    code?: string;
+  } {
+    if (exception instanceof Error) {
+      const ex = exception as unknown as Record<string, unknown>;
+      const code = typeof ex.code === "string" ? (ex.code as string) : undefined;
+
+      return {
+        name: exception.name,
+        message: exception.message,
+        stack: exception.stack,
+        code,
+      };
     }
-    return String(exception);
+
+    return {
+      name: "UnknownError",
+      message: String(exception),
+    };
   }
 }
