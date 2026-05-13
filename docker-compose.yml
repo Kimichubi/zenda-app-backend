@@ -10,6 +10,11 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -25,6 +30,31 @@ services:
       - "3002:3000"
     environment:
       - WAHA_PRINT_QR=true
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      WHATSAPP_BASE_URL: "http://waha:3000"
+      JWT_ACCESS_SECRET: "local-dev-access-secret"
+      JWT_REFRESH_SECRET: "local-dev-refresh-secret"
+      FRONTEND_URL: "http://localhost:3000"
+      WAHA_API_KEY: "local-waha-key"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      waha:
+        condition: service_started
 
 volumes:
   postgres_data:
