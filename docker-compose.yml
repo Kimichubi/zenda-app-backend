@@ -28,6 +28,8 @@ services:
     restart: always
     ports:
       - "3002:3000"
+    env_file:
+      - .env
     environment:
       - WAHA_PRINT_QR=true
 
@@ -38,16 +40,8 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3001"
-    environment:
-      NODE_ENV: development
-      PORT: 3001
-      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres?schema=public"
-      REDIS_URL: "redis://redis:6379"
-      WHATSAPP_BASE_URL: "http://waha:3000"
-      JWT_ACCESS_SECRET: "local-dev-access-secret"
-      JWT_REFRESH_SECRET: "local-dev-refresh-secret"
-      FRONTEND_URL: "http://localhost:3000"
-      WAHA_API_KEY: "local-waha-key"
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_healthy

@@ -41,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ]; then echo 'ERROR: DATABASE_URL environment variable is required'; exit 1; fi; npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/main.js"]
