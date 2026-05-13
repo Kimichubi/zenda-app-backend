@@ -32,13 +32,13 @@ RUN mkdir -p uploads && chown -R nestjs:nestjs /app
 
 USER nestjs
 
-EXPOSE 3001
-ENV PORT=3001
+EXPOSE 3000
+ENV PORT=3000
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512 --enable-source-maps"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
+  CMD curl -f http://localhost:3000/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/main.js"]
