@@ -25,6 +25,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 RUN pnpm prisma generate
 
 RUN mkdir -p uploads && chown -R nestjs:nestjs /app
