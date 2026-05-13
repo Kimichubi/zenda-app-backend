@@ -20,6 +20,9 @@ export abstract class UsersRepository {
       businessId?: string | null;
       role?: string;
       baseCommission?: number;
+      passwordHash?: string;
     },
   ): Promise<UserEntity | null>;
+
+  abstract delete(id: string): Promise<void>;
 }

@@ -25,8 +25,9 @@ export class WhatsappService {
   }
 
   async getSessionStatus(userId: string) {
+    const sessionName = await this.getSessionName(userId);
     try {
-      const response = await axios.get(`${this.baseUrl}/api/sessions/default`, {
+      const response = await axios.get(`${this.baseUrl}/api/sessions/${sessionName}`, {
         headers: this.getHeaders(),
       });
       return response.data.status;
@@ -39,10 +40,11 @@ export class WhatsappService {
   }
 
   async startSession(userId: string) {
+    const sessionName = await this.getSessionName(userId);
     try {
-      this.logger.log(`Tentando criar sessão no WAHA: default (para o usuário ${userId})`);
+      this.logger.log(`Tentando criar sessão no WAHA: ${sessionName} (para o usuário ${userId})`);
       await axios.post(`${this.baseUrl}/api/sessions`, {
-        name: "default",
+        name: sessionName,
         config: {
           proxy: null,
           noweb: {},
@@ -57,9 +59,9 @@ export class WhatsappService {
       const data = error.response?.data;
       
       if (status === 422 && data?.message?.includes("already exists")) {
-        this.logger.log(`Sessão 'default' já existe, tentando iniciar...`);
+        this.logger.log(`Sessão '${sessionName}' já existe, tentando iniciar...`);
         try {
-          await axios.post(`${this.baseUrl}/api/sessions/default/start`, {}, {
+          await axios.post(`${this.baseUrl}/api/sessions/${sessionName}/start`, {}, {
             headers: this.getHeaders(),
             timeout: 10000
           });
@@ -72,14 +74,15 @@ export class WhatsappService {
       }
 
       const detail = JSON.stringify(data || error.message);
-      this.logger.error(`Erro ${status} ao iniciar sessão no WAHA para default: ${detail}`);
+      this.logger.error(`Erro ${status} ao iniciar sessão no WAHA para ${sessionName}: ${detail}`);
       return { status: "ERROR", detail };
     }
   }
 
   async getQRCode(userId: string) {
+    const sessionName = await this.getSessionName(userId);
     try {
-      const response = await axios.get(`${this.baseUrl}/api/default/auth/qr`, {
+      const response = await axios.get(`${this.baseUrl}/api/${sessionName}/auth/qr`, {
         headers: {
           ...this.getHeaders(),
           "Accept": "application/json",
@@ -87,17 +90,18 @@ export class WhatsappService {
       });
       return response.data.data;
     } catch (error) {
-      this.logger.warn(`Não foi possível obter QR Code para default: ${error.message}`);
+      this.logger.warn(`Não foi possível obter QR Code para ${sessionName}: ${error.message}`);
       return null;
     }
   }
 
   async logoutSession(userId: string) {
+    const sessionName = await this.getSessionName(userId);
     try {
-      await axios.post(`${this.baseUrl}/api/sessions/default/logout`, {}, {
+      await axios.post(`${this.baseUrl}/api/sessions/${sessionName}/logout`, {}, {
         headers: this.getHeaders(),
       });
-      await axios.delete(`${this.baseUrl}/api/sessions/default`, {
+      await axios.delete(`${this.baseUrl}/api/sessions/${sessionName}`, {
         headers: this.getHeaders(),
       });
       return { success: true };
@@ -107,6 +111,7 @@ export class WhatsappService {
   }
 
   async sendMessage(userId: string, phone: string, text: string): Promise<void> {
+    const sessionName = await this.getSessionName(userId);
     const cleanPhone = this.formatPhoneNumber(phone);
     try {
       await axios.post(
@@ -114,11 +119,11 @@ export class WhatsappService {
         {
           chatId: `${cleanPhone}@c.us`,
           text: text,
-          session: "default",
+          session: sessionName,
         },
         { headers: this.getHeaders() }
       );
-      this.logger.log(`WhatsApp via WAHA (Sessão: default) enviado para ${cleanPhone}`);
+      this.logger.log(`WhatsApp via WAHA (Sessão: ${sessionName}) enviado para ${cleanPhone}`);
     } catch (error: any) {
       this.logger.error(`Erro ao enviar mensagem via WAHA para ${cleanPhone}: ${error.message}`);
     }
@@ -164,6 +169,11 @@ export class WhatsappService {
       select: { businessId: true },
     });
     return user?.businessId ?? null;
+  }
+
+  private async getSessionName(userId: string): Promise<string> {
+    const businessId = await this.getBusinessIdFromUser(userId);
+    return businessId ? `biz-${businessId}` : "default";
   }
 
   private async getConfirmationTemplate(businessId: string): Promise<string> {

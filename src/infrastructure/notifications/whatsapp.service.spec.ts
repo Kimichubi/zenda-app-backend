@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { WhatsappService } from './whatsapp.service';
+import { PrismaService } from '../database/prisma.service';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -9,6 +10,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 describe('WhatsappService', () => {
   let service: WhatsappService;
   let configService: ConfigService;
+  let prismaService: PrismaService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -24,11 +26,20 @@ describe('WhatsappService', () => {
             }),
           },
         },
+        {
+          provide: PrismaService,
+          useValue: {
+            user: {
+              findUnique: jest.fn().mockResolvedValue(null),
+            },
+          },
+        },
       ],
     }).compile();
 
     service = module.get<WhatsappService>(WhatsappService);
     configService = module.get<ConfigService>(ConfigService);
+    prismaService = module.get<PrismaService>(PrismaService);
   });
 
   it('should be defined', () => {
@@ -141,6 +152,53 @@ describe('WhatsappService', () => {
           text: 'Hello',
           session: 'default',
         },
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('multi-account session names', () => {
+    it('should use biz-prefixed session name when user has a business', async () => {
+      (prismaService.user.findUnique as jest.Mock).mockResolvedValueOnce({ businessId: 'biz-123' });
+      mockedAxios.get.mockResolvedValueOnce({ data: { status: 'WORKING' } });
+
+      const status = await service.getSessionStatus('user-with-business');
+
+      expect(status).toBe('WORKING');
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        'http://localhost:3001/api/sessions/biz-biz-123',
+        expect.any(Object)
+      );
+    });
+
+    it('should fallback to default session when user has no business', async () => {
+      mockedAxios.get.mockResolvedValueOnce({ data: { status: 'SCANNING' } });
+
+      const status = await service.getSessionStatus('user-no-business');
+
+      expect(status).toBe('SCANNING');
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        'http://localhost:3001/api/sessions/default',
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('logoutSession', () => {
+    it('should call logout and delete on the correct session', async () => {
+      mockedAxios.post.mockResolvedValueOnce({ data: {} });
+      mockedAxios.delete.mockResolvedValueOnce({ data: {} });
+
+      const result = await service.logoutSession('test-user');
+
+      expect(result).toEqual({ success: true });
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'http://localhost:3001/api/sessions/default/logout',
+        {},
+        expect.any(Object)
+      );
+      expect(mockedAxios.delete).toHaveBeenCalledWith(
+        'http://localhost:3001/api/sessions/default',
         expect.any(Object)
       );
     });

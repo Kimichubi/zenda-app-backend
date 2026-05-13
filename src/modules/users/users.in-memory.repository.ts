@@ -58,6 +58,7 @@ export class UsersInMemoryRepository implements UsersRepository {
       businessId?: string | null;
       role?: string;
       baseCommission?: number;
+      passwordHash?: string;
     },
   ): Promise<UserEntity | null> {
     const index = this.db.users.findIndex((u) => u.id === id);
@@ -69,5 +70,12 @@ export class UsersInMemoryRepository implements UsersRepository {
     };
 
     return this.db.users[index] as any as UserEntity;
+  }
+
+  async delete(id: string): Promise<void> {
+    const index = this.db.users.findIndex((u) => u.id === id);
+    if (index !== -1) {
+      this.db.users.splice(index, 1);
+    }
   }
 }

@@ -59,6 +59,7 @@ export class UsersPrismaRepository implements UsersRepository {
       businessId?: string | null;
       role?: string;
       baseCommission?: number;
+      passwordHash?: string;
     },
   ): Promise<UserEntity | null> {
     const user = await this.prisma.user.update({
@@ -66,5 +67,9 @@ export class UsersPrismaRepository implements UsersRepository {
       data: input as any,
     });
     return user as UserEntity | null;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.user.delete({ where: { id } });
   }
 }
