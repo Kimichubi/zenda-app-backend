@@ -57,11 +57,11 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json
     environment:
       WATCHTOWER_CLEANUP: true
       WATCHTOWER_POLL_INTERVAL: 300
-      REPO_USER: Kimichubi
-      REPO_PASS: ${GHCR_TOKEN}
+      HOME: /
     command: backend
 
 volumes:
