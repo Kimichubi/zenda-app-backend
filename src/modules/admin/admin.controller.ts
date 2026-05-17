@@ -634,6 +634,21 @@ export class AdminController {
     return { success: true };
   }
 
+  // --- Verification Codes ---
+
+  @Get("verification-codes")
+  async listVerificationCodes(@Query("email") email?: string) {
+    const where: any = {};
+    if (email) where.email = { contains: email, mode: "insensitive" };
+
+    const codes = await this.prisma.verificationCode.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    return codes;
+  }
+
   // --- Support Tickets ---
 
   @Get("support-tickets")

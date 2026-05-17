@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { AuthService } from "./auth.service";
 import { UsersRepository } from "../users/users.repository";
 import { PrismaService } from "../../infrastructure/database/prisma.service";
+import { EmailService } from "../../infrastructure/notifications/email.service";
 import { LoginDto } from "./dto/login.dto";
 import { SignupDto } from "./dto/signup.dto";
 
@@ -16,6 +17,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly usersRepository: UsersRepository,
     private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
   ) {}
 
   @Post("signup")
@@ -36,7 +38,13 @@ export class AuthController {
       },
     });
 
-    this.logger.log(`[2FA] Code sent to ${user.email}`);
+    this.logger.log(`[2FA] Code generated for ${user.email}`);
+
+    try {
+      await this.emailService.sendVerificationCode(user.email, code);
+    } catch {
+      this.logger.error(`Failed to send verification code email to ${user.email}`);
+    }
 
     return {
       requires2FA: true,

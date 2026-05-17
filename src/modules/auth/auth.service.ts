@@ -81,7 +81,7 @@ export class AuthService {
   }
 
   async rotateRefreshToken(oldRefreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
-    let decoded: { sub: string; email: string; tokenType?: string; jti?: string; impersonatedBusinessId?: string; role?: string };
+    let decoded: { sub: string; email: string; tokenType?: string; jti?: string; impersonatedBusinessId?: string; role?: string; rememberMe?: boolean };
     try {
       decoded = this.jwtService.verify(oldRefreshToken, {
         secret: this.configService.getOrThrow<string>("JWT_REFRESH_SECRET"),
@@ -133,6 +133,7 @@ export class AuthService {
       businessId: (user as any).businessId,
       family: storedToken.family,
       impersonatedBusinessId: decoded.impersonatedBusinessId,
+      rememberMe: decoded.rememberMe,
     });
   }
 
@@ -184,6 +185,7 @@ export class AuthService {
       tokenType: "refresh",
       jti,
       role: opts.role,
+      rememberMe: opts.rememberMe ?? false,
     };
     if (opts.impersonatedBusinessId) {
       refreshPayload.impersonatedBusinessId = opts.impersonatedBusinessId;
