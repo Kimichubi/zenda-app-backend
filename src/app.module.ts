@@ -14,6 +14,7 @@ import { ServicesModule } from "./modules/services/services.module";
 import { UsersModule } from "./modules/users/users.module";
 import { DatabaseModule } from "./infrastructure/database/database.module";
 import { LoggingModule } from "./infrastructure/logging/logging.module";
+import { AuditModule } from "./infrastructure/audit/audit.module";
 import { envSchema } from "./infrastructure/config/env.validation";
 import { AdminModule } from "./modules/admin/admin.module";
 import { SiteSettingsModule } from "./modules/site-settings/site-settings.module";
@@ -23,6 +24,7 @@ import { UploadModule } from "./modules/uploads/upload.module";
 import { PosModule } from "./modules/pos/pos.module";
 import { PixProviderModule } from "./modules/payments/pix-provider.module";
 import { HealthModule } from "./modules/health/health.module";
+import { MembershipModule } from "./modules/membership/membership.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { HttpLoggingInterceptor } from "./infrastructure/logging/http-logging.interceptor";
 
@@ -52,6 +54,7 @@ import { HttpLoggingInterceptor } from "./infrastructure/logging/http-logging.in
     ScheduleModule.forRoot(),
     DatabaseModule,
     LoggingModule,
+    AuditModule,
     PixProviderModule,
     AuthModule,
     UsersModule,
@@ -69,6 +72,7 @@ import { HttpLoggingInterceptor } from "./infrastructure/logging/http-logging.in
     UploadModule,
     PosModule,
     HealthModule,
+    MembershipModule,
   ],
   providers: [
     {

@@ -147,8 +147,10 @@ export class AuthController {
       }
     }
 
-    const needsOnboarding = !hasBusiness || businessStatus === "PENDING";
-    const suspended = businessStatus === "SUSPENDED";
+    const role = user.role;
+    const isBusinessRole = ["OWNER", "MANAGER", "PROFESSIONAL"].includes(role);
+    const needsOnboarding = isBusinessRole && (!hasBusiness || businessStatus === "PENDING");
+    const suspended = isBusinessRole && businessStatus === "SUSPENDED";
 
     return {
       valid: true,

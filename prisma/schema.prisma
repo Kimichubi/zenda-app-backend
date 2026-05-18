@@ -27,6 +27,8 @@ model Business {
   blockedSlots   BlockedSlot[]
   siteSettings   SiteSettings?
   loyaltyConfig  LoyaltyConfig?
+  membershipPlans MembershipPlan[]
+  clientSubscriptions ClientSubscription[]
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -86,6 +88,8 @@ model Service {
   price        Float
   appointments Appointment[]
   professionals ServiceProfessional[]
+  membershipPlans ServiceMembershipPlan[]
+  usageHistory MembershipUsage[]
   createdAt    DateTime      @default(now())
 
   @@index([businessId])
@@ -123,6 +127,7 @@ model Client {
   reviews       Review[]
   photos        ClientPhoto[]
   credit        ClientCredit?
+  subscriptions ClientSubscription[]
   createdAt     DateTime        @default(now())
 
   @@index([businessId])
@@ -530,6 +535,173 @@ enum TicketPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+model MembershipPlan {
+  id                    String                    @id @default(uuid())
+  businessId            String
+  business              Business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name                  String
+  description           String?
+  monthlyPrice          Float
+  billingFrequency      BillingFrequency          @default(MONTHLY)
+  servicesIncluded      ServiceMembershipPlan[]
+  usageLimitsPerPeriod  Int?
+  autoRenewal           Boolean                   @default(true)
+  extraBenefits         String?
+  validDays             Int?
+  validStartHour        String?
+  validEndHour          String?
+  isActive              Boolean                   @default(true)
+  minCommitmentMonths   Int                       @default(1)
+  cancellationRules     String?
+  trialDays             Int                       @default(0)
+  maxActiveSubscriptions Int?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  subscriptions         ClientSubscription[]
+
+  @@index([businessId])
+  @@index([businessId, isActive])
+}
+
+enum BillingFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMESTERLY
+  YEARLY
+}
+
+model ServiceMembershipPlan {
+  id                String          @id @default(uuid())
+  planId            String
+  plan              MembershipPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  serviceId         String
+  service           Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  usageLimit        Int?
+  createdAt         DateTime        @default(now())
+
+  @@unique([planId, serviceId])
+}
+
+model ClientSubscription {
+  id                    String                  @id @default(uuid())
+  planId                String
+  plan                  MembershipPlan          @relation(fields: [planId], references: [id])
+  clientId              String
+  client                Client                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  businessId            String
+  business              Business                @relation(fields: [businessId], references: [id])
+
+  status                SubscriptionStatus      @default(ACTIVE)
+  startDate             DateTime
+  endDate               DateTime?
+  cancelledAt           DateTime?
+  cancelReason          String?
+  pauseUntil            DateTime?
+
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  lastBillingAt         DateTime?
+  nextBillingAt         DateTime?
+
+  stripeSubscriptionId  String?
+  stripeCustomerId      String?
+
+  usageCount            Int                     @default(0)
+  usageLimit            Int?
+
+  autoRenewal           Boolean                 @default(true)
+  trialEndsAt           DateTime?
+
+  payments              SubscriptionPayment[]
+  usageHistory          MembershipUsage[]
+
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@index([businessId])
+  @@index([clientId])
+  @@index([planId])
+  @@index([status])
+  @@index([nextBillingAt])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+  TRIALING
+  PAST_DUE
+}
+
+model SubscriptionPayment {
+  id                String              @id @default(uuid())
+  subscriptionId    String
+  subscription      ClientSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount            Float
+  currency          String              @default("BRL")
+  status            SubscriptionPaymentStatus @default(PENDING)
+  paymentMethod     String?
+  paymentGateway    String?
+  gatewayPaymentId  String?
+  pixCode           String?
+  boletoUrl         String?
+  paidAt            DateTime?
+  dueDate           DateTime
+  invoiceUrl        String?
+  metadata          Json                @default("{}")
+  createdAt         DateTime            @default(now())
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+  FAILED
+}
+
+model MembershipUsage {
+  id                String              @id @default(uuid())
+  subscriptionId    String
+  subscription      ClientSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  serviceId         String?
+  service           Service?            @relation(fields: [serviceId], references: [id])
+  appointmentId     String?
+  usedAt            DateTime            @default(now())
+  description       String?
+
+  @@index([subscriptionId])
+  @@index([usedAt])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  businessId  String?
+  action      String
+  entity      String
+  entityId    String?
+  metadata    Json     @default("{}")
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model SupportTicket {

@@ -611,6 +611,92 @@ export class AdminController {
     };
   }
 
+  // --- Membership / Subscriptions ---
+
+  @Get("subscriptions")
+  async listPlatformSubscriptions(
+    @Query("status") status?: string,
+    @Query("page") page = "1",
+    @Query("limit") limit = "20",
+  ) {
+    const skip = (Number(page) - 1) * Number(limit);
+    const where: any = {};
+    if (status) where.status = status;
+
+    const [subscriptions, total] = await Promise.all([
+      this.prisma.clientSubscription.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        orderBy: { createdAt: "desc" },
+        include: {
+          plan: { select: { id: true, name: true, monthlyPrice: true } },
+          client: { select: { id: true, name: true, phone: true } },
+          business: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.clientSubscription.count({ where }),
+    ]);
+
+    return { data: subscriptions, total, page: Number(page), limit: Number(limit) };
+  }
+
+  @Get("subscriptions/stats")
+  async getPlatformSubscriptionStats() {
+    const [active, trialing, pastDue, cancelled, expired, totalRevenue] = await Promise.all([
+      this.prisma.clientSubscription.count({ where: { status: "ACTIVE" } }),
+      this.prisma.clientSubscription.count({ where: { status: "TRIALING" } }),
+      this.prisma.clientSubscription.count({ where: { status: "PAST_DUE" } }),
+      this.prisma.clientSubscription.count({ where: { status: "CANCELLED" } }),
+      this.prisma.clientSubscription.count({ where: { status: "EXPIRED" } }),
+      this.prisma.subscriptionPayment.aggregate({
+        where: { status: "PAID" },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    return {
+      active,
+      trialing,
+      pastDue,
+      cancelled,
+      expired,
+      totalRevenue: totalRevenue._sum.amount ?? 0,
+      total: active + trialing + pastDue + cancelled + expired,
+    };
+  }
+
+  // --- Audit Logs ---
+
+  @Get("audit-logs")
+  async getAuditLogs(
+    @Query("action") action?: string,
+    @Query("entity") entity?: string,
+    @Query("businessId") businessId?: string,
+    @Query("userId") userId?: string,
+    @Query("page") page = "1",
+    @Query("limit") limit = "50",
+  ) {
+    const skip = (Number(page) - 1) * Number(limit);
+    const where: any = {};
+    if (action) where.action = action;
+    if (entity) where.entity = entity;
+    if (businessId) where.businessId = businessId;
+    if (userId) where.userId = userId;
+
+    const [data, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: Number(limit),
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return { data, total, page: Number(page), limit: Number(limit) };
+  }
+
   // --- Feature Flags ---
 
   @Get("feature-flags")
