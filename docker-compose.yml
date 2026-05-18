@@ -34,9 +34,7 @@ services:
       - WAHA_PRINT_QR=true
 
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/kimichubi/zenda-app-backend:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
