@@ -11,6 +11,18 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
   const frontendOrigin = configService.get("FRONTEND_URL") || "http://localhost:5174";
+  const allowedOrigins = frontendOrigin
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  if (process.env.NODE_ENV !== "production") {
+    allowedOrigins.push(
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:3000",
+    );
+  }
 
   app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -29,12 +41,22 @@ async function bootstrap() {
   }));
 
   app.enableCors({
-    origin: process.env.NODE_ENV === "production"
-      ? [frontendOrigin]
-      : [frontendOrigin, "http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-    allowedHeaders: "Content-Type,Authorization,Accept",
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Accept",
+      "Origin",
+      "X-Requested-With",
+    ],
     maxAge: 86400,
   });
 
