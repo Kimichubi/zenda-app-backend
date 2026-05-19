@@ -29,6 +29,7 @@ model Business {
   loyaltyConfig  LoyaltyConfig?
   membershipPlans MembershipPlan[]
   clientSubscriptions ClientSubscription[]
+  businessSubscription BusinessSubscription?
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -67,6 +68,9 @@ model User {
   blockedSlots    BlockedSlot[]
   scheduleOverrides ProfessionalScheduleOverride[]
   services        ServiceProfessional[]
+
+  rememberMeToken   String?
+  rememberMeExpiresAt DateTime?
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -684,6 +688,51 @@ model MembershipUsage {
 
   @@index([subscriptionId])
   @@index([usedAt])
+}
+
+model BusinessSubscription {
+  id                    String   @id @default(uuid())
+  businessId            String   @unique
+  business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  plan                  BusinessPlan @default(PRO)
+  status                SubscriptionStatus @default(ACTIVE)
+  abacateCustomerId     String?
+  abacateSubscriptionId String?
+  currentPeriodStart    DateTime @default(now())
+  currentPeriodEnd      DateTime
+  lastBillingAt         DateTime?
+  nextBillingAt         DateTime?
+  trialEndsAt           DateTime?
+  cancelledAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  invoices              BusinessInvoice[]
+
+  @@index([businessId])
+  @@index([status])
+}
+
+model BusinessInvoice {
+  id              String                   @id @default(uuid())
+  subscriptionId  String
+  subscription    BusinessSubscription     @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount          Float
+  currency        String                   @default("BRL")
+  status          SubscriptionPaymentStatus @default(PENDING)
+  paymentMethod   String?
+  abacateId       String?
+  pixCode         String?
+  pixQrCode       String?
+  invoiceUrl      String?
+  paidAt          DateTime?
+  dueDate         DateTime
+  metadata        Json                     @default("{}")
+  createdAt       DateTime                 @default(now())
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([dueDate])
 }
 
 model AuditLog {

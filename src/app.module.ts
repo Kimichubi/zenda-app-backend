@@ -26,6 +26,7 @@ import { PixProviderModule } from "./modules/payments/pix-provider.module";
 import { HealthModule } from "./modules/health/health.module";
 import { MembershipModule } from "./modules/membership/membership.module";
 import { MetricsModule } from "./modules/metrics/metrics.module";
+import { BillingModule } from "./modules/billing/billing.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { HttpLoggingInterceptor } from "./infrastructure/logging/http-logging.interceptor";
 
@@ -75,6 +76,7 @@ import { HttpLoggingInterceptor } from "./infrastructure/logging/http-logging.in
     HealthModule,
     MembershipModule,
     MetricsModule,
+    BillingModule,
   ],
   providers: [
     {

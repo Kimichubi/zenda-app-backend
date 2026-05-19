@@ -205,6 +205,16 @@ export class AuthService {
       },
     });
 
+    await this.prisma.user.update({
+      where: { id: opts.userId },
+      data: {
+        rememberMeToken: opts.rememberMe ? refreshToken : null,
+        rememberMeExpiresAt: opts.rememberMe
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          : null,
+      },
+    });
+
     // Cleanup old expired tokens
     const cutoff = new Date(Date.now() - this.MAX_REFRESH_FAMILY_AGE_MS);
     await this.prisma.refreshToken.deleteMany({
