@@ -1,0 +1,5 @@
+FROM alpine:3.19
+
+COPY prometheus/prometheus.yml /configs/prometheus.yml
+COPY grafana/datasources/datasources.yml /configs/datasources.yml
+COPY grafana/dashboards/dashboards.yml /configs/dashboards.yml

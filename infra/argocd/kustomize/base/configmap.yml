@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zenda-backend-config
+  labels:
+    app: zenda-backend
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  FRONTEND_URL: "https://zenda-frontend.onrender.com"
+  WHATSAPP_BASE_URL: "http://zenda-waha:3002"
+  WAHA_API_KEY: "local-waha-key"
+  AI_PROVIDER: "gemini"
+  OPENROUTER_API_URL: "https://openrouter.ai/api/v1/chat/completions"
+  OPENROUTER_MODEL: "meta-llama/llama-3.3-70b-instruct:free"

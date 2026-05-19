@@ -65,6 +65,11 @@ services:
       HOME: /
     command: backend
 
+networks:
+  default:
+    name: zenda-app-backend_default
+    driver: bridge
+
 volumes:
   postgres_data:
   redis_data:

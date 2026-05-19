@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yml
+  - service.yml
+  - configmap.yml
+
+commonLabels:
+  app.kubernetes.io/name: zenda-backend
+  app.kubernetes.io/part-of: zenda
+  app.kubernetes.io/managed-by: argocd
+
+images:
+  - name: ghcr.io/kimichubi/zenda-app-backend
+    newTag: latest
