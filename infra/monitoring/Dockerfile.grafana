@@ -1,0 +1,3 @@
+FROM grafana/grafana:latest
+COPY grafana/datasources /etc/grafana/provisioning/datasources
+COPY grafana/dashboards /etc/grafana/provisioning/dashboards

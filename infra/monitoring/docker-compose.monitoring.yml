@@ -1,10 +1,12 @@
 services:
   prometheus:
-    image: prom/prometheus:latest
+    build:
+      context: .
+      dockerfile: infra/monitoring/Dockerfile.prometheus
+    image: ${REGISTRY:-ghcr.io}/${REPO_OWNER:-kimichubi}/zenda-prometheus:${TAG:-latest}
     container_name: zenda-prometheus
     restart: unless-stopped
     volumes:
-      - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -16,14 +18,16 @@ services:
       - zenda-monitoring
 
   grafana:
-    image: grafana/grafana:latest
+    build:
+      context: .
+      dockerfile: infra/monitoring/Dockerfile.grafana
+    image: ${REGISTRY:-ghcr.io}/${REPO_OWNER:-kimichubi}/zenda-grafana:${TAG:-latest}
     container_name: zenda-grafana
     restart: unless-stopped
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
     volumes:
-      - ./infra/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
-      - ./infra/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
       - grafana_data:/var/lib/grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
