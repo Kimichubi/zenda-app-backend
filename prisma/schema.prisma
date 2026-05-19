@@ -10,6 +10,9 @@ model Business {
   id             String         @id @default(uuid())
   name           String
   slug           String         @unique
+  email          String?
+  phone          String?
+  document       String?
   plan           BusinessPlan   @default(PRO)
   status         BusinessStatus @default(PENDING)
   pixKey         String?
@@ -29,7 +32,7 @@ model Business {
   loyaltyConfig  LoyaltyConfig?
   membershipPlans MembershipPlan[]
   clientSubscriptions ClientSubscription[]
-  businessSubscription BusinessSubscription?
+  organizationSubscription OrganizationSubscription?
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -690,49 +693,205 @@ model MembershipUsage {
   @@index([usedAt])
 }
 
-model BusinessSubscription {
-  id                    String   @id @default(uuid())
-  businessId            String   @unique
-  business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  plan                  BusinessPlan @default(PRO)
-  status                SubscriptionStatus @default(ACTIVE)
+model BillingPlan {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  description     String?
+
+  monthlyPrice    Float
+  yearlyPrice     Float?
+
+  features        Json     @default("[]")
+  limits          Json     @default("{}")
+
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions   OrganizationSubscription[]
+}
+
+model OrganizationSubscription {
+  id                    String                   @id @default(uuid())
+  businessId            String                   @unique
+  business              Business                 @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  planId                String?
+  plan                  BillingPlan?             @relation(fields: [planId], references: [id])
+
+  status                SubscriptionStatus       @default(TRIALING)
+
   abacateCustomerId     String?
   abacateSubscriptionId String?
-  currentPeriodStart    DateTime @default(now())
+
+  currentPeriodStart    DateTime                 @default(now())
   currentPeriodEnd      DateTime
+  trialStart            DateTime?
+  trialEnd              DateTime?
+
+  cancelledAt           DateTime?
+  cancelReason          String?
+
+  gracePeriodStart      DateTime?
+  gracePeriodEnd        DateTime?
+
+  autoRenewal           Boolean                  @default(true)
   lastBillingAt         DateTime?
   nextBillingAt         DateTime?
-  trialEndsAt           DateTime?
-  cancelledAt           DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
 
-  invoices              BusinessInvoice[]
+  metadata              Json                     @default("{}")
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  invoices              BillingInvoice[]
 
   @@index([businessId])
   @@index([status])
+  @@index([nextBillingAt])
 }
 
-model BusinessInvoice {
-  id              String                   @id @default(uuid())
-  subscriptionId  String
-  subscription    BusinessSubscription     @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  amount          Float
-  currency        String                   @default("BRL")
-  status          SubscriptionPaymentStatus @default(PENDING)
-  paymentMethod   String?
-  abacateId       String?
-  pixCode         String?
-  pixQrCode       String?
-  invoiceUrl      String?
-  paidAt          DateTime?
-  dueDate         DateTime
-  metadata        Json                     @default("{}")
-  createdAt       DateTime                 @default(now())
+model BillingInvoice {
+  id                String                   @id @default(uuid())
+  subscriptionId    String
+  subscription      OrganizationSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  invoiceNumber     String                   @unique
+  amount            Float
+  currency          String                   @default("BRL")
+  status            BillingInvoiceStatus     @default(PENDING)
+  billingType       BillingType              @default(MONTHLY)
+
+  abacateId         String?
+  abacateUrl        String?
+  pixCode           String?
+  pixQrCode         String?
+  boletoUrl         String?
+
+  dueDate           DateTime
+  paidAt            DateTime?
+  paidAmount        Float?
+
+  attempts          Int                      @default(0)
+  lastAttemptAt     DateTime?
+  nextAttemptAt     DateTime?
+
+  metadata          Json                     @default("{}")
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  payments          BillingPayment[]
 
   @@index([subscriptionId])
   @@index([status])
   @@index([dueDate])
+  @@index([abacateId])
+}
+
+model BillingPayment {
+  id                String                   @id @default(uuid())
+  invoiceId         String
+  invoice           BillingInvoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  amount            Float
+  currency          String                   @default("BRL")
+  status            BillingPaymentStatus     @default(PENDING)
+
+  gateway           String?
+  gatewayPaymentId  String?
+  gatewayFee        Float?
+
+  pixCode           String?
+  pixQrCode         String?
+
+  paidAt            DateTime?
+  failureReason     String?
+  failureCode       String?
+
+  metadata          Json                     @default("{}")
+  createdAt         DateTime                 @default(now())
+
+  @@index([invoiceId])
+  @@index([gatewayPaymentId])
+}
+
+model WebhookEvent {
+  id                String               @id @default(uuid())
+  eventId           String               @unique
+  eventType         String
+  source            String               @default("abacatepay")
+
+  payload           Json
+  headers           Json                 @default("{}")
+
+  status            WebhookEventStatus   @default(PENDING)
+  processingError   String?
+  processedAt       DateTime?
+
+  retryCount        Int                  @default(0)
+  lastRetryAt       DateTime?
+
+  idempotencyKey    String?   @unique
+
+  createdAt         DateTime             @default(now())
+
+  @@index([eventId])
+  @@index([status])
+}
+
+enum BillingPlanInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum BillingInvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+  FAILED
+}
+
+enum BillingType {
+  MONTHLY
+  YEARLY
+}
+
+enum BillingPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum WebhookEventStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  IGNORED
+}
+
+enum BillingEventType {
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_ACTIVATED
+  SUBSCRIPTION_CANCELLED
+  SUBSCRIPTION_EXPIRED
+  SUBSCRIPTION_RENEWED
+  SUBSCRIPTION_UPGRADED
+  SUBSCRIPTION_DOWNGRADED
+  SUBSCRIPTION_PAST_DUE
+  INVOICE_CREATED
+  INVOICE_PAID
+  INVOICE_OVERDUE
+  INVOICE_FAILED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  TRIAL_STARTED
+  TRIAL_ENDING
+  TRIAL_EXPIRED
+  PLAN_CHANGED
 }
 
 model AuditLog {

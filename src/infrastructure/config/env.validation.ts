@@ -32,6 +32,11 @@ export const envSchema = z.object({
   WAHA_API_KEY: z.string().optional(),
 
   // AI Provider
+  // AbacatePay
+  ABACATE_API_URL: z.string().url().default("https://api.abacatepay.com/v1"),
+  ABACATE_API_TOKEN: z.string().optional(),
+  ABACATE_WEBHOOK_SECRET: z.string().optional(),
+
   AI_PROVIDER: z.enum(["gemini", "qwen", "default"]).default("default"),
   OPENROUTER_API_KEY: z.string().optional(),
   OPENROUTER_API_URL: z.string().url().optional(),
